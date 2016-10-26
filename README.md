@@ -9,7 +9,20 @@ Through the incorporation of multiple networks we can evaluate how various types
 
 ##Algorithm Comparison
 In addition to the gene-based approach there are additional algorithms that can infer subnetworks from a set of training data. 
-`Sara had more details here`
+
+###Step 1: mapping features to network
+####Gene-based approaches
+YFG used a network approach to alter gene-specific weightings based on a training set of genes known to be associated with a phenotype
+
+####Graph-based approaches
+Numerous graph-reduction algorithms have used optimization strategies to identify subnetworks of interest from a set set of genes related to a particular phenotype:
+* [HotNet2](https://github.com/raphael-group/hotnet2)
+* [Forest/OmicsIntegrator](https://github.com/fraenkel-lab/OmicsIntegrator)
+
+If we use these algorithms to infer subnetworks, we can update our clasification strategy to use networks instead of genes.
+
+###Step 2: using features to infer phenotype
+This can be done using basic classification or regression approaches, all of which can be compared. 
 
 ##Datasets to evaluate
 To start we should use genetic mutation data to infer response to drug response. By using datasets that also have mRNA expression data we can infer the Correlative networks described above.
