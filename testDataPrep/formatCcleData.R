@@ -6,6 +6,7 @@ library(cgdsr)
 library(data.table)
 
 synapseLogin()
+##########MUTATION PROFILE#################
 
 ##this is just a UCSC list of gene names
 all.genes<<-unique(fread('https://raw.githubusercontent.com/sgosline/RASPathwaySig/master/data/ucsc_kgXref_hg19_2015_10_29.csv')$geneSymbol)
@@ -41,12 +42,38 @@ fname='CCLE_binary_mutation_matrix_ucscGenesFromCBioPortal.tsv'
 write.table(bin.mat,file=fname,row.names=T,col.names=T,sep='\t',quote=F)
 
 ##now we can re-rupload to new synapse project
+this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/sara/testDataPrep/formatCcleData.R?token=ABwyOuHv5fcuVRHm5mr2z9E8giRQdLVCks5YHWEswA%3D%3D'
 fendRDatDir='syn7465504'
-synStore(File(fname,parentId=fendRDatDir))
+synStore(File(fname,parentId=fendRDatDir),used=list(list(url=this.script)))
 
 #might as well push to the CCLE repo
-synStore(File(fname,parentId='syn5706496'))
+synStore(File(fname,parentId='syn5706496'),used=this.script)
 
+########DRUG RESPONSE DATA #########################
 ###now get the CTRP data
+auc_data<-synGet('syn5622711')@filePath
+auc_dat=read.table(auc_data,sep='\t',header=T,quote='"')
 
+ccl_data=synGet('syn5632194')@filePath
+ccl_dat=read.table(ccl_data,header=T,sep='\t')
+ccl_metadata<-synGet('syn5632192')@filePath
+ccl_metadat<-read.table(ccl_metadata,sep='\t',header=T,as.is=T)
+
+drug_data=synGet("syn5632193")@filePath
+drug_dat=read.table(drug_data,sep='\t',header=T,fill=T,quote='"')
+
+
+#now match it all up into a single data frame
+new.df<-data.frame(AUC=as.numeric(auc_dat$area_under_curve),
+                   Drug=drug_dat$cpd_name[match(auc_dat$master_cpd_id,drug_dat$master_cpd_id)],
+                   CCL_id=ccl_dat$master_ccl_id[match(auc_dat$experiment_id,ccl_dat$experiment_id)])
+new.df$CCL=ccl_metadat$ccl_name[match(new.df$CCL_id,ccl_metadat$master_ccl_id)]
+
+require(reshape2)
+drugmat<-acast(new.df,Drug~CCL,value.var="AUC",fun.aggregate=function(x) mean(x,na.rm=T))
+
+fname='CTRP_v20_AUC_vales_by_drug.tsv'
+write.table(drugmat,file=fname,sep='\t',row.names=T,col.names=T)
+
+synStore(File(fname,parentId=fendRDatDir),used=list(list(url=this.script)))
 
