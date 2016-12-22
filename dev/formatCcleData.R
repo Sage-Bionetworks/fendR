@@ -70,7 +70,7 @@ new.df<-data.frame(AUC=as.numeric(auc_dat$area_under_curve),
 new.df$CCL=ccl_metadat$ccl_name[match(new.df$CCL_id,ccl_metadat$master_ccl_id)]
 
 require(reshape2)
-drugmat<-acast(new.df,Drug~CCL,value.var="AUC",fun.aggregate=function(x) mean(x,na.rm=T))
+drugmat<-acast(new.df,CCL~Drug,value.var="AUC",fun.aggregate=function(x) mean(x,na.rm=T))
 
 fname='../inst/CTRP_v20_AUC_vales_by_drug.tsv'
 write.table(drugmat,file=fname,sep='\t',row.names=T,col.names=T)

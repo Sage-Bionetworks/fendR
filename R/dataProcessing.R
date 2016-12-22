@@ -26,7 +26,7 @@ loadNetwork <- function(fname){
 #' @examples
 #' @return Data Frame
 loadSampleData <- function(fname){
-
+  read.table(fname)
 }
 
 #' Load phenotype data
@@ -38,5 +38,5 @@ loadSampleData <- function(fname){
 #' @examples
 #' @return Data frame with at least 1 column
 loadPhenotypeData <- function(fname){
-
+  read.table(fname)
 }
