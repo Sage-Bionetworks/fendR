@@ -40,13 +40,12 @@ createNewFeaturesFromNetwork.forestFendR<-function(object){
     confFile=''
 
     #then call forest.py with arguments
-    cmd=paste('python ',object$forestPath,'/scripts/forest.py -p ',prizeFileName,' -e ',netFileName,
-      ' -c ',confFile,sep='')
+
 
     #optimize arguments for number of trees and size.
     mu.range<-seq(0.001,0.004,by=0.001)
-    beta.range<-seq()
-    w.range<-seq()
+    beta.range<-seq(100,200,by=10)
+    w.range<-seq(1,5,by=1)
 
     #iterate over all possible parameters
 
@@ -56,6 +55,38 @@ createNewFeaturesFromNetwork.forestFendR<-function(object){
 
 
 }
+####################
+#below are unexported helper functions to make processing forest easier
+#in the future we can replace these with C calls to msgsteiner.
+runForestWithParams <- function(forestPath,mu,beta,w,prizeFileName,netFileName,depth=10){
+
+  #create a tmp directory
+  paramstr=paste('mu',mu,'beta',beta,'w',w,sep='_')
+  dirname=paste(forestPath,paramstr,sep='/')
+  dir.create(dirname)
+
+  #write conf file
+  cf=file(paste(dirname,'conf.txt',sep='/'))
+  writeLines(c(paste('w =',w),paste('b =',beta),paste('D =',depth),paste('mu =',mu)),cf)
+  close(cf)
+
+  cmd=paste('python ',forestPath,'/scripts/forest.py --prize ',prizeFileName,
+    ' --edge ',netFileName,
+    ' --conf ',paste(dirname,'conf.txt',sep='/'),
+    ' --outpath ',dirname,
+    ' --outlabel ',paramstr,
+    ' --msgpath ',forestPath,
+    sep='')
+
+  #run code
+  res=system(cmd)
+
+  #collect files and load into igraph -- which files do we want?
+
+  #return igraphs
+
+  }
+
 
 #internal helper function to load file to igraph
 loadForestNetworkToIgraph<-function(fname){
