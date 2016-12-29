@@ -1,0 +1,11 @@
+Package: fendR
+Type: Package
+Title: Feature Engineering by Network Domain
+Version: 0.1
+Date: 2016-12-21
+Author: Who wrote it
+Maintainer: Sweet Dee Charlie Mac and Dennis <fendR@sagebase.org>
+Description: This package enables the comparison of network-based algorithms in a predictive framework.
+License: What license is it under?
+LazyData: TRUE
+RoxygenNote: 5.0.1.9000
