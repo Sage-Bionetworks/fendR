@@ -5,10 +5,10 @@
 \title{Builds predictive model from network-augmented feature
 \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying}
 \usage{
-buildModelFromEngineeredFeatures(fendrObject, newFeatureSet)
+buildModelFromEngineeredFeatures(object)
 }
 \arguments{
-\item{fendrObject}{That contains a phenotypic data}
+\item{object}{That contains a phenotypic data}
 
 \item{newFeatureSet}{from \code{createNewFeaturesFromNetwork}}
 }

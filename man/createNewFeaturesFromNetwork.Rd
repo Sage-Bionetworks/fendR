@@ -5,10 +5,10 @@
 \title{Engineer Features from Network
 \code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their #' score using a network}
 \usage{
-createNewFeaturesFromNetwork(fendrObject)
+createNewFeaturesFromNetwork(object)
 }
 \arguments{
-\item{fendrObject}{That contains a data frame and network}
+\item{object}{That contains a data frame and network}
 }
 \value{
 data.frame representing new gene by sample matrix that is augmented

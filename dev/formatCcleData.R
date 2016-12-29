@@ -38,11 +38,13 @@ dfdat<-apply(ddat,1,function(x){
 })
 
 bin.mat<-dfdat*1
+colnames(bin.mat)[which(colnames(bin.mat)=='TT_THYROID')]<-'TTTHYROID'
+colnames(bin.mat)<-sapply(colnames(bin.mat),function(x) unlist(strsplit(x,split='_'))[1])
 fname='../inst/CCLE_binary_mutation_matrix_ucscGenesFromCBioPortal.tsv'
 write.table(bin.mat,file=fname,row.names=T,col.names=T,sep='\t',quote=F)
 
 ##now we can re-rupload to new synapse project
-this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/sara/testDataPrep/formatCcleData.R?token=ABwyOuHv5fcuVRHm5mr2z9E8giRQdLVCks5YHWEswA%3D%3D'
+this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/sara/testDataPrep/formatCcleData.R'
 fendRDatDir='syn7465504'
 synStore(File(fname,parentId=fendRDatDir),used=list(list(url=this.script)))
 

@@ -2,59 +2,62 @@
 ## might become semi-abstract if we move dataProcessing tools in this
 
 ######################################################################
-# Create the forestFendR class
+# Create the fendR class
 
-#' An S4 class to represent a fendR predictive network algorithm
+#' An S3 class to represent a fendR predictive network algorithm
 #'
-#' @slot network A matrix (exact format TBD)
-#' @slot featureData a data.frame that contains rows representing genes and columns representing samples
-#' @slot phenoData a data.frame representing at least one column of phenotype and rows representing samples
-fendR <- setClass(
-  "fendR",
+#' @param network A matrix (exact format TBD)
+#' @param featureData a data.frame that contains rows representing genes and columns representing samples
+#' @param phenoData a data.frame representing at least one column of phenotype and rows representing samples
+#' @export
+#' @return a fendR object
+fendR<-function(network, featureData, phenoData){
+  me <- list(network=network,
+    featureData=featureData,
+    phenoData=phenoData,
+    remappedFeatures=featureData, ##default to original data for testing
+    featureModel=NULL)
+  class(me) <- append(class(me),"fendR")
+  return(me)
+}
 
-  slots = c(
-    network = "matrix",
-    featureData = "data.frame",
-    phenoData = "data.frame"
-  ), ##TODO: add slots for additional feature sets
-
-  #prototype = c() ##TODO set this
-
-  validity = function(object)
-  {
-    #two checks (so far)
-    #1 make sure that the overlap between features and networks is greater than some threshold (e.g. 100)
-    #2 make sure dimensions of feature data match the dimensions of the phenoData
-  }
-)
 ######################################################################
 
 ######################################################################
-# Set generic methods that must be implemented by final class
+# these are the generic methods to be implemented
 
 #' Engineer Features from Network
 #' \code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their #' score using a network
-#' @param fendrObject That contains a data frame and network
+#' @param object That contains a data frame and network
 #' @keywords
 #' @export
 #' @return data.frame representing new gene by sample matrix that is augmented
-setGeneric(name="createNewFeaturesFromNetwork",
-  def=function(fendrObject){
-    standardGeneric("createNewFeaturesFromNetwork")
-  })
+createNewFeaturesFromNetwork<-function(object){
+  UseMethod('createNewFeaturesFromNetwork',object)
+}
+
+createNewFeaturesFromNetwork.fendR <- function(object){
+  print("This method cannot be called on generic fendR class")
+  return(object)
+}
 
 #' Builds predictive model from network-augmented feature
 #' \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying
-#' @param fendrObject That contains a phenotypic data
+#' @param object That contains a phenotypic data
 #' @param newFeatureSet from \code{createNewFeaturesFromNetwork}
 #' @keywords
 #' @export
 #' @return an object of class \code{lm}
-setGeneric(name="buildModelFromEngineeredFeatures",
-  def=function(fendrObject,newFeatureSet){
-    standardGeneric("buildModelFromEngineeredFeatures")
-    }
-  )
+buildModelFromEngineeredFeatures <- function(object){
+  UseMethod('buildModelFromEngineeredFeatures',object)
+}
+
+##now create warning
+#buildModelFromEngineeredFeatures.fendR <- function(object){
+#  print("This method cannot be called on generic fendR class")
+#  return(object)
+
+#}
 
 #' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
 #' @param model
@@ -62,8 +65,11 @@ setGeneric(name="buildModelFromEngineeredFeatures",
 #' @keywords
 #' @export
 #' @return list of scores for each of the columns of the unseen feature data frame
-setGeneric(name="scoreDataFromModel",
-  def=function(model,unseenFeatures){
-    standardGeneric("scoreDataFromModel")
-    }
-  )
+scoreDataFromModel <- function(object, unseenFeatures){
+  UseMethod('scoreDataFromModel',object)
+}
+
+scoreDataFromModel.fendR <- function(object, unseenFeatures){
+  print("This method cannot be called on generic fendR class")
+  return(rep(0.0),ncol(unseenFeatures))
+}
