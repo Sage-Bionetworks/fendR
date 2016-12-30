@@ -37,9 +37,9 @@ createNewFeaturesFromNetwork.forestFendR<-function(object){
     #write network, weight, config file to working directory
     prizeFileName='prizes.txt'
     write.table(geneSums,prizeFileName,quote=F,col.names=F)
-    netFileName=object$network
-
-    #then call forest.py with arguments
+    netFileName='network.txt'
+    write.table(object$network.data,file=netFileName,col.names=F,quote=F,sep='\t')
+        #then call forest.py with arguments
 
 
     #optimize arguments for number of trees and size.
@@ -89,7 +89,7 @@ runForestWithParams <- function(forestPath,mu,beta,w,prizeFileName,netFileName,d
   writeLines(c(paste('w =',w),paste('b =',beta),paste('D =',depth),paste('mu =',mu)),cf)
   close(cf)
 
-  cmd=paste('/usr/local/bin/python ',forestPath,'/scripts/forest.py --prize ',prizeFileName,
+  cmd=paste('/usr/bin/python ',forestPath,'/scripts/forest.py --prize ',prizeFileName,
     ' --edge ',netFileName,
     ' --conf ',paste(dirname,'conf.txt',sep='/'),
     ' --outpath ',dirname,

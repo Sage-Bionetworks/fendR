@@ -10,10 +10,10 @@ gene.data<-loadSampleData(gene.file)
 pheno.file<-system.file('CTRP_v20_AUC_vales_by_drug.tsv',package='fendR')
 pheno.data<-loadPhenotypeData(pheno.file)
 network.file<-'https://github.com/fraenkel-lab/OmicsIntegrator/raw/master/data/iref_mitab_miscore_2013_08_12_interactome.txt'
-#network.data<-read.table(network.file,sep='\t')
+network.data<-read.table(network.file,sep='\t')
 
 #create new forest class with data - both inheriting class info and additional
-fObj <- forestFendR(network=network.file,
+fObj <- forestFendR(network=network.data,
   featureData=gene.data,
   phenoData=pheno.data,
   forestPath='../../OmicsIntegrator')
