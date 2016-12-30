@@ -35,83 +35,91 @@ createNewFeaturesFromNetwork.forestFendR<-function(object){
     #these become our nodeWeights for forest
 
     #write network, weight, config file to working directory
-    prizeFileName=''
-    netFileName=''
-    confFile=''
+    prizeFileName='prizes.txt'
+    write.table(geneSums,prizeFileName,quote=F,col.names=F)
+    netFileName=object$network
 
     #then call forest.py with arguments
 
 
     #optimize arguments for number of trees and size.
     mu.range<-seq(0.001,0.004,by=0.001)
-    beta.range<-seq(100,200,by=10)
+    beta.range<-seq(100,200,by=25)
     w.range<-seq(1,5,by=1)
 
     #iterate over all possible parameters
+    all.graphs<-lapply(as.character(mu.range),function(mu){
+      res<-lapply(as.character(beta.range),function(beta,mu){
+        res<-lapply(as.character(w.range),function(w,beta,mu){
+            runForestWithParams(object$forestPath,mu,beta,w,prizeFileName,netFileName,depth=10)
 
-    ##read in files and compare number of nodes in graph
+        },beta,mu)
+        names(res)<-as.character(w.range)
+        return(res)
+      },mu)
+      names(res)<-as.character(beta.range)
+      return(res)
+      })
+    names(all.graphs)<-as.character(mu.range)
 
-    #assign new features based on shortest path, using igraph
 
+          #assign new features based on shortest path, using igraph
+  return(all.graphs)
 
 }
 ####################
 #below are unexported helper functions to make processing forest easier
 #in the future we can replace these with C calls to msgsteiner.
+#' Run Forest using python code
+#' \code{runForestWithParams} runs python code and returns graph objects
+#' @param object That contains a data frame and network
+#' @keywords
+#' @return list of graph objects
 runForestWithParams <- function(forestPath,mu,beta,w,prizeFileName,netFileName,depth=10){
 
   #create a tmp directory
   paramstr=paste('mu',mu,'beta',beta,'w',w,sep='_')
-  dirname=paste(forestPath,paramstr,sep='/')
-  dir.create(dirname)
+  dirname=paste(forestPath,'fendROutput',sep='/')
+
+  if(!dir.exists(dirname))
+    dir.create(dirname)
 
   #write conf file
   cf=file(paste(dirname,'conf.txt',sep='/'))
   writeLines(c(paste('w =',w),paste('b =',beta),paste('D =',depth),paste('mu =',mu)),cf)
   close(cf)
 
-  cmd=paste('python ',forestPath,'/scripts/forest.py --prize ',prizeFileName,
+  cmd=paste('/usr/local/bin/python ',forestPath,'/scripts/forest.py --prize ',prizeFileName,
     ' --edge ',netFileName,
     ' --conf ',paste(dirname,'conf.txt',sep='/'),
     ' --outpath ',dirname,
     ' --outlabel ',paramstr,
-    ' --msgpath ',forestPath,
+    ' --msgpath ',forestPath,'/msgsteiner',
     sep='')
 
   #run code
-  res=system(cmd)
+  print(paste('Running forest:',cmd))
+  res <- 1
+  try(res<-system(cmd))
 
+  if(res==0){
   #collect files and load into igraph -- which files do we want?
+  net <- read.table(paste(dirname,'/',paramstr,'_optimalForest.sif',sep=''),sep='\t')
+  nodes <-unique(c(nodes[,1],nodes[,3]))
 
   #return igraphs
-
+  opt_graph <- graph_from_edgelist(net[,c(1,3)],directed = FALSE)
+  print(paste("Returning graph with",length(E(opt_graph)),'edges and',length(V(opt_graph)),'nodes'))
+  return(opt_graph)
+  }else{
+    print("Unable to run Forest, returning empty graph")
+    return(empty_graph(0,directed=FALSE))
   }
-
-
-#internal helper function to load file to igraph
-loadForestNetworkToIgraph<-function(fname){
-
 }
 
 
-#' Builds predictive model from network-augmented feature
-#' \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying
-#' @param object That contains a phenotypic data
-#' @param newFeatureSet from \code{createNewFeaturesFromNetwork}
-#' @keywords
-#' @export
-#' @return an object of class \code{lm}
-buildModelFromEngineeredFeatures.forestFendR<-function(object){
-  #start with a linear model? haven't tested this yet
 
-  over<-intersect(rownames(object$phenoData),colnames(object$remappedFeatures))
-  all.mods<-apply(object$phenoData[over,],2,function(x){
-    df<-data.frame(drug=x,t(object$remappedFeatures[,over]))
-    mod<-lm(drug~.,data=df)
-  })
-  names(all.mods)<-colnames(object$phenoData)
-  object$model <- all.mods
-  return(object)
+augmentFeaturesWithGraph<-function(object,graph){
 
 }
 
