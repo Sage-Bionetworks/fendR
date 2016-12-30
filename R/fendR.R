@@ -52,12 +52,27 @@ buildModelFromEngineeredFeatures <- function(object){
   UseMethod('buildModelFromEngineeredFeatures',object)
 }
 
-##now create warning
-#buildModelFromEngineeredFeatures.fendR <- function(object){
-#  print("This method cannot be called on generic fendR class")
-#  return(object)
+##now create warnin
+#' Builds predictive model from network-augmented feature
+#' \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying
+#' @param object That contains a phenotypic data
+#' @param newFeatureSet from \code{createNewFeaturesFromNetwork}
+#' @keywords
+#' @export
+#' @return an object of class \code{lm}
+buildModelFromEngineeredFeatures.fendR <- function(object){
+  print('Building linear model from remapped features')
+  over<-intersect(rownames(object$phenoData),colnames(object$remappedFeatures))
+  all.mods<-apply(object$phenoData[over,],2,function(x){
+    df<-data.frame(drug=x,t(object$remappedFeatures[,over]))
+    mod<-lm(drug~.,data=df)
+  })
+  names(all.mods)<-colnames(object$phenoData)
+  object$model <- all.mods
+  return(object)
 
-#}
+
+}
 
 #' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
 #' @param model
