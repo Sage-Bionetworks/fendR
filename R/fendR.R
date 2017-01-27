@@ -8,13 +8,15 @@
 #'
 #' @param network A matrix (exact format TBD)
 #' @param featureData a data.frame that contains rows representing genes and columns representing samples
-#' @param phenoData a data.frame representing at least one column of phenotype and rows representing samples
+#' @param sampleOutcomeData a data.frame representing at least one column of phenotype and rows representing samples
+#' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
 #' @export
 #' @return a fendR object
-fendR<-function(network, featureData, phenoData){
+fendR<-function(network, featureData, phenoFeatureData, sampleOutcomeData){
   me <- list(network=network,
     featureData=featureData,
-    phenoData=phenoData,
+    phenoFeatureData=phenoFeatureData,
+    sampleOutcomeData=sampleOutcomeData,
     remappedFeatures=featureData, ##default to original data for testing
     featureModel=NULL)
   class(me) <- append(class(me),"fendR")
@@ -26,8 +28,10 @@ fendR<-function(network, featureData, phenoData){
 ######################################################################
 # these are the generic methods to be implemented
 
+
 #' Engineer Features from Network
-#' \code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their #' score using a network
+#' \code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their
+#' score using the list of networks
 #' @param object That contains a data frame and network
 #' @keywords
 #' @export
@@ -52,7 +56,7 @@ buildModelFromEngineeredFeatures <- function(object){
   UseMethod('buildModelFromEngineeredFeatures',object)
 }
 
-##now create warnin
+
 #' Builds predictive model from network-augmented feature
 #' \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying
 #' @param object That contains a phenotypic data
@@ -62,12 +66,12 @@ buildModelFromEngineeredFeatures <- function(object){
 #' @return an object of class \code{lm}
 buildModelFromEngineeredFeatures.fendR <- function(object){
   print('Building linear model from remapped features')
-  over<-intersect(rownames(object$phenoData),colnames(object$remappedFeatures))
-  all.mods<-apply(object$phenoData[over,],2,function(x){
+  over<-intersect(rownames(object$sampleOutcomeData),colnames(object$remappedFeatures))
+  all.mods<-apply(object$sampleOutcomeData[over,],2,function(x){
     df<-data.frame(drug=x,t(object$remappedFeatures[,over]))
     mod<-lm(drug~.,data=df)
   })
-  names(all.mods)<-colnames(object$phenoData)
+  names(all.mods)<-colnames(object$sampleOutcomeData)
   object$model <- all.mods
   return(object)
 

@@ -9,17 +9,24 @@ gene.file<-system.file('CCLE_binary_mutation_matrix_ucscGenesFromCBioPortal.tsv'
 gene.data<-loadSampleData(gene.file)
 pheno.file<-system.file('CTRP_v20_AUC_vales_by_drug.tsv',package='fendR')
 pheno.data<-loadPhenotypeData(pheno.file)
+
+target.file<-system.file('CTRP_v20_drug_target_vals.tsv',package='fendR')
+target.data<-loadTargetData(target.file)
+
 network.file<-'https://github.com/fraenkel-lab/OmicsIntegrator/raw/master/data/iref_mitab_miscore_2013_08_12_interactome.txt'
 network.data<-read.table(network.file,sep='\t')
 
+
+
 #create new forest class with data - both inheriting class info and additional
-fObj <- forestFendR(network=network.data,
+fObj <- basicFendR(network=network.data,
   featureData=gene.data,
-  phenoData=pheno.data,
-  forestPath='../../OmicsIntegrator')
+  sampleOutcomeData=pheno.data,
+  phenoFeatureData = target.data
+ )
 
 
-graphs<-createNewFeaturesFromNetwork(fObj)
+fObj<-createNewFeaturesFromNetwork(fObj)
 
 ##i commented these so they won't run just yet, but should be run across all fendR objects
 #fObj<-buildModelFromEngineeredFeatures(fObj)

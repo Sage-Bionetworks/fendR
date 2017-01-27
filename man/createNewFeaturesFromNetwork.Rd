@@ -3,7 +3,8 @@
 \name{createNewFeaturesFromNetwork}
 \alias{createNewFeaturesFromNetwork}
 \title{Engineer Features from Network
-\code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their #' score using a network}
+\code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their
+score using the list of networks}
 \usage{
 createNewFeaturesFromNetwork(object)
 }
@@ -15,5 +16,6 @@ data.frame representing new gene by sample matrix that is augmented
 }
 \description{
 Engineer Features from Network
-\code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their #' score using a network
+\code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their
+score using the list of networks
 }
