@@ -12,8 +12,6 @@ forestFendR(network, featureData, phenoData, forestPath)
 
 \item{featureData}{a data.frame that contains rows representing genes and columns representing samples}
 
-\item{phenoData}{a data.frame representing at least one column of phenotype and rows representing samples}
-
 \item{forestPath}{Path to python forest scripts}
 }
 \value{
