@@ -40,3 +40,15 @@ loadSampleData <- function(fname){
 loadPhenotypeData <- function(fname){
   read.table(fname)
 }
+
+#' Load target/snp data
+#'
+#' \code{loadTargetData} loads in the target/phenotype data with the first column representing the drug of choice and the second represneting the gene
+#' @param Path to  file
+#' @keywords phenotype
+#' @export
+#' @examples
+#' @return Data frame with at least 2 column
+loadTargetData <- function(fname){
+  read.table(fname)
+}

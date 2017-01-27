@@ -11,7 +11,7 @@
 \item{object}{That contains a data frame and network}
 }
 \value{
-data.frame representing new gene by sample matrix that is augmented
+list of gene features for each phenotype/drug response
 }
 \description{
 Engineer Features from Network
