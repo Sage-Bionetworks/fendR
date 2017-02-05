@@ -81,15 +81,20 @@ write.table(drugmat,file=fname,sep='\t',row.names=T,col.names=T)
 synStore(File(fname,parentId=fendRDatDir),used=list(list(url=this.script)))
 
 ##lastly get drug target data
+pheno.data<-read.table('../inst/CTRP_v20_AUC_vales_by_drug.tsv')
 drug.target<-read.table(synGet('syn5632193')@filePath,header=T,sep='\t')
 targs<-drug.target$gene_symbol_of_protein_target[match(colnames(pheno.data),sapply(drug.target$cpd_name,function(x) gsub(' |-','.',x)))]
 names(targs)<-colnames(pheno.data)
 targs<-targs[-which(is.na(targs))]
 
 sing.targs<-sapply(as.character(targs),function(x) unlist(strsplit(x,split=';')))
-names(sing.targs)<-names(targs)
+#names(sing.targs)<-names(targs)
 
-drugs.to.targs<-data.frame(Drug=names(unlist(sing.targs)),Target=unlist(sing.targs))
+drugs.to.targs<-NULL
+for(i in 1:length(sing.targs))
+  drugs.to.targs<-rbind(drugs.to.targs,cbind(Drug=rep(names(targs)[i],length(sing.targs[[i]])),Target=sing.targs[[i]]))
+
+    #data.frame(Drug=names(unlist(sing.targs)),Target=unlist(sing.targs))
 write.table(drugs.to.targs,row.names=F,col.names=T,file='../inst/CTRP_v20_drug_target_vals.tsv',sep='\t')
 synStore(File('../inst/CTRP_v20_drug_target_vals.tsv',parentId='syn7465504'),used=list(list(entity='syn5632193'),list(url=this.script)))
 #drugs.to.targs=data.frame(Drug=colnames(pheno.data),Target=targs)

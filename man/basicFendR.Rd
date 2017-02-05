@@ -8,7 +8,7 @@ network algorithm}
 basicFendR(network, featureData, phenoFeatureData, sampleOutcomeData)
 }
 \arguments{
-\item{network}{A matrix (exact format TBD)}
+\item{network}{An iGraph network}
 
 \item{featureData}{a data.frame that contains rows representing genes and columns representing samples}
 

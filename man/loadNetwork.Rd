@@ -10,7 +10,7 @@ loadNetwork(fname)
 \item{Path}{to network file}
 }
 \value{
-? matrix? data frame?
+an iGraph object where edge weights represent distance between nodes (smaller means *more* association)
 }
 \description{
 \code{loadNetwork} takes a file path and formats it as network

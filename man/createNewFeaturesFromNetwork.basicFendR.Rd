@@ -5,7 +5,7 @@
 \title{Engineer Features from Network
 \code{createNewFeaturesFromNetwork} takes the phenotype scores and updates the gene scores based on phenotype}
 \usage{
-\method{createNewFeaturesFromNetwork}{basicFendR}(object)
+\method{createNewFeaturesFromNetwork}{basicFendR}(object, testDrugs = NA)
 }
 \arguments{
 \item{object}{That contains a data frame and network}
