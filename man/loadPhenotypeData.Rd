@@ -10,7 +10,7 @@ loadPhenotypeData(fname)
 \item{Path}{to phenotype file}
 }
 \value{
-Data frame with at least 1 column
+tidied data frame with columns 'Sample','Phenotype','Response'
 }
 \description{
 \code{loadPhenotypeData} loads in the phenotype data with the sample identifiers as rows and any phenotype of interest as the column

@@ -10,7 +10,7 @@ loadSampleData(fname)
 \item{Path}{to sample file}
 }
 \value{
-Data Frame
+tidied data frame with columns 'Gene','Sample' and 'Value'
 }
 \description{
 \code{loadSampleData} takes a file path and loads it into a data frame

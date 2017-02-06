@@ -6,7 +6,7 @@
 \code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their
 score using the list of networks}
 \usage{
-createNewFeaturesFromNetwork(object)
+createNewFeaturesFromNetwork(object, testDrugs)
 }
 \arguments{
 \item{object}{That contains a data frame and network}

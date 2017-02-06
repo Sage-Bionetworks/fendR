@@ -14,22 +14,21 @@ target.file<-system.file('CTRP_v20_drug_target_vals.tsv',package='fendR')
 target.data<-loadTargetData(target.file)
 
 network.file<-'https://github.com/fraenkel-lab/OmicsIntegrator/raw/master/data/iref_mitab_miscore_2013_08_12_interactome.txt'
-network.data<-read.table(network.file,sep='\t')
-
+weighted_network<-loadNetwork(network.file)
 
 
 #create new forest class with data - both inheriting class info and additional
-fObj <- basicFendR(network=network.data,
+fObj <- basicFendR(network=weighted_network,
   featureData=gene.data,
   sampleOutcomeData=pheno.data,
   phenoFeatureData = target.data
  )
 
-
-fObj<-createNewFeaturesFromNetwork(fObj)
+testDrugs=c('selumetinib',"sorafenib","vorinostat")
+fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
 
 ##i commented these so they won't run just yet, but should be run across all fendR objects
-#fObj<-buildModelFromEngineeredFeatures(fObj)
+fObj<-buildModelFromEngineeredFeatures(fObj)
 
 #score<-scoreDataFromModel(fObj)
 

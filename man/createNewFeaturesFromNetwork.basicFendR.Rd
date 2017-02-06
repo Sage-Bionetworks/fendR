@@ -5,13 +5,13 @@
 \title{Engineer Features from Network
 \code{createNewFeaturesFromNetwork} takes the phenotype scores and updates the gene scores based on phenotype}
 \usage{
-\method{createNewFeaturesFromNetwork}{basicFendR}(object)
+\method{createNewFeaturesFromNetwork}{basicFendR}(object, testDrugs = NA)
 }
 \arguments{
 \item{object}{That contains a data frame and network}
 }
 \value{
-data.frame representing new gene by sample matrix that is augmented
+list of gene features for each phenotype/drug response
 }
 \description{
 Engineer Features from Network
