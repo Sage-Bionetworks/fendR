@@ -70,3 +70,59 @@ loadTargetData <- function(fname){
   colnames(tab)<-c("Phenotype","Gene")
   tab
 }
+
+
+
+
+
+
+
+
+#' edgeList2matrix convertion and write out
+#'
+#' \code{edgeList2matrix} loads in the target/phenotype data with the first column representing the drug of choice and the second represneting the gene
+#' @param elPath file path to edge list file with three colums, geneA, geneB and edge
+#' @param outType bigMatrix or feather
+#' @param outPath directory for output if NULL it will be same as input file
+#' @import data.table tibble tidyr plyr bigmemory feather
+#' @export
+#' @return Data frame with at least 2 column
+edgeList2matrix =function(elPath, outType = "bigMatrix", outPath=NULL) # el (edge list) should be a data.tableish represenation of an edgelist with 1st 2 colums being gene names
+{
+  suppressPackageStartupMessages(library("data.table"))
+  suppressPackageStartupMessages(library("tibble"))
+  suppressPackageStartupMessages(library("tidyr"))
+  suppressPackageStartupMessages(library("plyr"))
+  suppressPackageStartupMessages(library("bigmemory"))
+  suppressPackageStartupMessages(library("feather"))
+  el    <- fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","edge"); gc()              # names are needed for the plyr and tidyr calls
+  el    <- as_tibble(el)
+  el    <- arrange(el, geneA, geneB); gc()                                                             # need it sorted before make into symetric matrix
+  el    <- spread(el, key= "geneB", value = "edge"); gc()                                              # tidyr call to get matrix
+  temp  <- as.matrix(el[, 2:ncol(el)]); gc()                                                           # necessary for filling in lower tri
+  gName <- c(el$geneA[1],colnames(el)[-1]); rm(el);gc()
+  ret   <- matrix(1,ncol(temp)+1, ncol(temp)+1); colnames(ret) <- gName
+
+  ret[upper.tri(ret)] <- temp[upper.tri(temp,diag = T)]
+  temp <- t(temp)
+  ret[lower.tri(ret)] <- temp[lower.tri(temp,diag = T)]; rm(temp); gc()
+
+  if(is.null(outPath)){outPath = dirname(elPath)}
+  if(outType =="bigMatrix")
+  {
+    suppressPackageStartupMessages(library("bigmemory"))
+    write.big.matrix(as.big.matrix(ret), filename = file.path(outPath,gsub("\\.txt$","BM\\.txt",basename(elPath))))
+  }
+  if(outType =="feather")
+  {
+    suppressPackageStartupMessages(library("feather"))
+    write_feather(as.data.frame(ret), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
+  }
+}
+
+
+
+
+
+
+

@@ -1,25 +1,32 @@
 
-##this is a basic implementation of the fendR class to demonstrate how to create a class
-##TODO: discuss moving some of these features to the parent class.
+## This is an implementation of the nearest-neighbor network (n3) fendR class.
+## It is based on the methods used by Yuanfang Guan in DREAM challenges.
 
 ######################################################################
-# Create the basicFendR class
+# Create the n3FendR class
 #
-# This is used to represent a basicimplementation of the fendR framework
+# This is used to represent the nearest-neighbor network implementation of the fendR framework.
 
-#' An S3 class to represent a basic implementation of the fendR predictive
-#' network algorithm
+#' An S3 class to represent the nearest-neighbor network implementation of the fendR predictive
+#' network algorithm.
+#' @param network the file name of a feather or big.matrix object representing a dense matrix
+#' @param featureData a data.frame that contains rows representing genes and columns representing samples
+#' @param sampleOutcomeData a data.frame representing at least one column of phenotype and rows representing samples
+#' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
+#' @param target.genes a vector of target gene names (a subset of those in featureData) that will be used to sparsify the network
+#' @param network.type the on-disk representation of the network (either "feather" or "big.memory")
 #' @inheritParams fendR
 #' @export
-#' @return basicFendR object
-basicFendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData){
+#' @return n3FendR object
+n3FendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData, target.genes, network.type){
  me <-fendR(network, featureData, phenoFeatureData,sampleOutcomeData)
- class(me) <- append(class(me),'basicFendR')
+ me <- append(me, list(target.genes = target.genes, network.type = network.type))
+ class(me) <- append(class(me),'n3FendR')
  return(me)
 }
 
 ######################################################################
-# Set methods implemented by basicFendR
+# Set methods implemented by n3FendR
 
 
 
@@ -30,19 +37,35 @@ basicFendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData){
 #' @export
 #' @import dplyr
 #' @return list of gene features for each phenotype/drug response
-createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
+createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA){
     library(dplyr)
     ##figure out which phenotypes have both feature data and outcome data
-    phenos<-intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
-    all.phenos<-union(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
-    print(paste("Found",length(phenos),'phenotypes that have feature data and outcome data out of',length(all.phenos)))
+    phenos <- intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
+    all.phenos <- union(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
+    cat(paste0("Found ", length(phenos), "phenotypes that have feature data and outcome data out of", length(all.phenos), "\n"))
 
-
-    if(!is.na(testDrugs)&&any(testDrugs%in%phenos)){
-      print(paste("Reducing scope to only focus on",paste(testDrugs,collapse=',')))
-      phenos=phenos[phenos %in% testDrugs]
+    if(!is.na(testDrugs) && any(testDrug%in%phenos)) {
+      cat(paste0("Reducing scope to only focus on ", paste(testDrugs, collapse=','), " drugs\n"))
+      phenos <- phenos[phenos %in% testDrug]
     }
 
+    ## Sparsify the data (featureData and network) by only considering a subset of
+    ## curated target.genes -- these are likely drug targets and/or "cancer genes," etc.  
+    ## NB: by doing this up front/here we do not propagate mutations in non target genes
+    ## to the target genes.
+    full.gene.set <- unique(object$featureData$gene)
+    num.genes.in.full.feature.space <- length(full.gene.set)
+    reduced.gene.set <- full.gene.set
+    if(!is.na(object$target.genes) && !is.null(object$target.genes)) {
+      if(!any(object$target.genes %in% full.gene.set)) {
+        stop("None of target genes are in the featureData")
+      }
+      reduced.gene.set <- full.gene.set[full.gene.set %in% object$target.genes]
+      cat(paste0("Reducing feature space from ", num.genes.in.full.feature.space, " to ", length(reduced.gene.set), "\n"))
+    } else {
+      cat(paste0("Using all ", num.genes.in.full.feature.space, " genes in featureData.\n"))
+      cat("Not sparsifying data or network\n")
+    }
 
     #TODO: investigate how these can be done with dplyr/mutate?
 
@@ -70,8 +93,9 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
       #create new data frame with features
       ddf<-data.frame(Gene=as.character(c(nzFeatures,zFeat)),
-        FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))), stringsAsFactors=FALSE)
+        FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))))
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
+
       new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
       return(new.fd)
     })
@@ -82,12 +106,14 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     for(i in 1:length(phenos))
       phen<-c(phen,rep(phenos[i],nrow(pheno.features[[i]])))
     newdf$Phenotype<-phen
+    #newdf$Phenotype<-unlist(sapply(phenos,rep,nrow(object$featureData)))
 
+#  pf<-gather(data.frame(pheno.features),"Phenotype","NetworkDistance",1:ncol(pheno.features))
 
     ##Reduction strategy:
     #if we have multiple drugs: remove any genes that don't change across drugs.
     #eventually do something more complicated
-    if(is.na(testDrugs)||length(testDrugs>1)){
+    if(is.na(testDrug)||length(testDrug>1)){
       gene.var<-newdf%>%group_by(Gene)%>%summarize(Variance=var(NetworkValue))
       nzvars<-which(gene.var$Variance>0)
       genes<-gene.var$Gene[nzvars]
@@ -109,11 +135,11 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
 #' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
 #' @param model
-#' @param unseenData
+#' @param unseenFeatures
 #' @keywords
 #' @export
 #' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel.basicFendR<-function(object,unseenData){
+scoreDataFromModel.basicFendR<-function(object){
 
 }
 
