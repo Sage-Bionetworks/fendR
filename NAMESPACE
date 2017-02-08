@@ -18,3 +18,8 @@ export(scoreDataFromModel)
 import(dplyr)
 import(igraph)
 import(tidyr)
+import(feather)
+import(bigmemory)
+import(data.table)
+import(plyr)
+

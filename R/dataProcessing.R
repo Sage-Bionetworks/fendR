@@ -76,15 +76,6 @@ loadTargetData <- function(fname){
 
 
 
-rm(list=ls());gc()
-
-library("feather")
-library("bigmemory")
-library("tidyr")
-library("data.table")
-library("plyr")
-library(dplyr)
-library("doMC")
 
 
 #' Load target/snp data
