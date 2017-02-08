@@ -78,7 +78,7 @@ loadTargetData <- function(fname){
 
 
 
-#' Load target/snp data
+#' edgelist2matrix convertion and write out
 #'
 #' \code{edgeList2matrix} loads in the target/phenotype data with the first column representing the drug of choice and the second represneting the gene
 #' @elPath file path to edge list file with three colums, geneA, geneB and edge
