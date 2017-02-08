@@ -78,15 +78,20 @@ loadTargetData <- function(fname){
 
 
 
-#' edgelist2matrix convertion and write out
+#' edgeList2matrix convertion and write out
 #'
 #' \code{edgeList2matrix} loads in the target/phenotype data with the first column representing the drug of choice and the second represneting the gene
-#' @elPath file path to edge list file with three colums, geneA, geneB and edge
-#' @outType bigMatrix or feather
-#' @outPath directory for output if NULL it will be same as input file
+#' @param elPath file path to edge list file with three colums, geneA, geneB and edge
+#' @param outType bigMatrix or feather
+#' @param outPath directory for output if NULL it will be same as input file
+#' @import data.table tibble tidyr plyr bigmemory feather
 #' @return Data frame with at least 2 column
 edgeList2matrix =function(elPath, outType = "bigMatrix", outPath=NULL) # el (edge list) should be a data.tableish represenation of an edgelist with 1st 2 colums being gene names
 {
+  suppressPackageStartupMessages(library("data.table"))	
+  suppressPackageStartupMessages(library("tibble"))	
+  suppressPackageStartupMessages(library("tidyr"))	
+  suppressPackageStartupMessages(library("plyr"))	
   el    <- fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","edge"); gc()              # names are needed for the plyr and tidyr calls
   el    <- as_tibble(el)
   el    <- arrange(el, geneA, geneB); gc()                                                             # need it sorted before make into symetric matrix
@@ -102,10 +107,12 @@ edgeList2matrix =function(elPath, outType = "bigMatrix", outPath=NULL) # el (edg
   if(is.null(outPath)){outPath = dirname(elPath)}
   if(outType =="bigMatrix")
   {
+    suppressPackageStartupMessages(library("bigmemory"))	
     write.big.matrix(as.big.matrix(ret), filename = file.path(outPath,gsub("\\.txt$","BM\\.txt",basename(elPath))))
   }
   if(outType =="feather")
   {  
+    suppressPackageStartupMessages(library("feather"))	
     write_feather(as.data.frame(ret), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
   }
 }
