@@ -52,7 +52,7 @@ createNewFeaturesFromNetwork<-function(object,testDrugs){
 #' @keywords
 #' @export
 #' @return an object of class \code{lm}
-buildModelFromEngineeredFeatures <- function(object){
+buildModelFromEngineeredFeatures <- function(object,testDrugs){
   UseMethod('buildModelFromEngineeredFeatures',object)
 }
 
@@ -60,19 +60,27 @@ buildModelFromEngineeredFeatures <- function(object){
 #' Builds predictive model from network-augmented feature
 #' \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying
 #' @param object That contains a phenotypic data
-#' @param newFeatureSet from \code{createNewFeaturesFromNetwork}
 #' @param testDrug name of drug to select from dataset to test in smaller context
 #' @keywords
 #' @export
-#' @return an object of class \code{lm}
-buildModelFromEngineeredFeatures.fendR <- function(object,testDrug=NA){
+#' @return an object of class \code{fendR} with a list of \code{lm} objects
+buildModelFromEngineeredFeatures.fendR <- function(object,testDrugs=NA){
   print('Building linear model from remapped features')
 
+
    over<-intersect(object$sampleOutcomeData$Phenotype,object$remappedFeatures$Phenotype)
+  if(!is.na(testDrugs))
+    over<-testDrugs
 
   all.mods<-lapply(over,function(x){
-    mod.df<-left_join(subset(object$sampleOutcomeData,Phenotype==x),subset(object$remappedFeatures,Phenotype==x),by="Sample")
-    mod<-lm(Response~Value,mod.df)
+      print(paste('Creating model for',x))
+      mod.df<-inner_join(subset(object$sampleOutcomeData,Phenotype==x)%>%select(Sample,Response),subset(object$remappedFeatures,Phenotype==x),by="Sample")%>%select(Sample,Gene,Value,Response)
+
+
+        res<-spread(mod.df,Gene,value=Value)
+        res<-res[,-which(colnames(res)=='Sample')]
+        mod<-lm(Response~.,data=res)
+      mod
   })
   names(all.mods)<-over
   object$featureModel <- all.mods
@@ -80,17 +88,87 @@ buildModelFromEngineeredFeatures.fendR <- function(object,testDrug=NA){
 
 }
 
+#' Builds predictive model from original features
+#' \code{buildModelFromOriginalFeatures} takes the original features and creates a model based on an underlying
+#' @param object That contains a phenotypic data
+#' @param testDrug name of drug to select from dataset to test in smaller context
+#' @keywords
+#' @export
+#' @return an fendR object with a list of \code{lm} objects
+buildModelFromOriginalFeatures.fendR <- function(object,testDrugs=NA){
+  print('Building linear model from original features')
+
+
+  over<-unique(object$sampleOutcomeData$Phenotype)
+  if(!is.na(testDrugs))
+    over<-testDrugs
+
+  #let's do a basic reduction here to test for genes who are not differentially mutated across samples
+  gene.var<-object$featureData%>%group_by(Gene)%>%summarize(Variance=var(Value))
+
+  #nonzero genes
+  nz.genes<-gene.var$Gene[which(gene.var$Variance!=0)]
+  print(paste('Reducing gene dataset to',length(nz.genes),'features that vary across all samples'))
+
+  red.df<-subset(object$featureData,Gene%in%nz.genes)
+  all.mods<-lapply(over,function(x){
+    print(paste('Creating model for',x))
+
+    mod.df<-inner_join(subset(object$sampleOutcomeData,Phenotype==x),red.df,by="Sample")%>%select(Sample,Gene,Value,Response)
+    res<-spread(mod.df,Gene,value=Value)
+    res<-res[,-which(colnames(res)=='Sample')]
+    mod<-lm(Response~.,data=res)
+    mod
+  })
+  names(all.mods)<-over
+  object$featureModel <- all.mods
+  return(object)
+}
+
+
+#' Builds predictive model from original features
+#' \code{buildModelFromOriginalFeatures} takes the original features and creates a model based on an underlying
+#' @param object That contains a phenotypic data
+#' @keywords
+#' @export
+#' @return an fendR object with a list of \code{lm} objects
+buildModelFromOriginalFeatures <- function(object,testDrugs){
+  UseMethod('buildModelFromOriginalFeatures',object)
+
+}
+
 #' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
 #' @param model
 #' @param unseenFeatures
+#' @param unseenResponse
 #' @keywords
 #' @export
 #' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel <- function(object, unseenFeatures){
+scoreDataFromModel <- function(object, unseenFeatures,unseenResponse){
   UseMethod('scoreDataFromModel',object)
 }
 
-#scoreDataFromModel.fendR <- function(object, unseenFeatures){
-#  print("This method cannot be called on generic fendR class")
-#  return(rep(0.0),ncol(unseenFeatures))
-#}
+#' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
+#' @param model
+#' @param unseenFeatures
+#' @param unseenResponse
+#' @keywords
+#' @export
+#' @return list of scores for each of the columns of the unseen feature data frame
+scoreDataFromModel.fendR <- function(object, unseenFeatures,unseenResponse){
+  #new.df<-left_join(unseenFeatures,object$featureData,by='Sample')
+  model.preds<-sapply(names(object$featureModel),function(p){
+    #subset for phenotype if we have different ones for each drug
+    if('Phenotype'%in%names(unseenFeatures))
+      ddf<-subset(unseenFeatures,Phenotype==p)[,-which(colnames(unseenFeatures)=='Phenotype')]
+    else
+      ddf<-unseenFeatures
+
+    newvec<-select(ddf,Gene,Value)%>%spread(Gene,value=Value)
+    predict(object$featureModel[[p]],newdata=newvec)[[1]]
+  })
+
+  model.preds<-data.frame(Prediction=model.preds,Actual=unseenResponse$Response[match(names(object$featureModel),unseenResponse$Phenotype)])
+
+  return(model.preds)
+}

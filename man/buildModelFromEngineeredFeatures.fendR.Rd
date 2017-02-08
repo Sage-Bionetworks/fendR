@@ -5,17 +5,15 @@
 \title{Builds predictive model from network-augmented feature
 \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying}
 \usage{
-\method{buildModelFromEngineeredFeatures}{fendR}(object, testDrug = NA)
+\method{buildModelFromEngineeredFeatures}{fendR}(object, testDrugs = NA)
 }
 \arguments{
 \item{object}{That contains a phenotypic data}
 
 \item{testDrug}{name of drug to select from dataset to test in smaller context}
-
-\item{newFeatureSet}{from \code{createNewFeaturesFromNetwork}}
 }
 \value{
-an object of class \code{lm}
+an object of class \code{fendR} with a list of \code{lm} objects
 }
 \description{
 Builds predictive model from network-augmented feature
