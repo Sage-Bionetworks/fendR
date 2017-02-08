@@ -37,9 +37,9 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     all.phenos<-union(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
     print(paste("Found",length(phenos),'phenotypes that have feature data and outcome data out of',length(all.phenos)))
 
-    if(!is.na(testDrugs)&&testDrug%in%phenos){
+    if(!is.na(testDrugs)&&any(testDrugs%in%phenos)){
       print(paste("Reducing scope to only focus on",paste(testDrugs,collapse=',')))
-      phenos=testDrug
+      phenos=phenos[phenos %in% testDrugs]
     }
 
 
@@ -69,9 +69,8 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
       #create new data frame with features
       ddf<-data.frame(Gene=as.character(c(nzFeatures,zFeat)),
-        FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))))
+        FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))), stringsAsFactors=FALSE)
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
-
       new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
       return(new.fd)
     })
@@ -89,7 +88,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     ##Reduction strategy:
     #if we have multiple drugs: remove any genes that don't change across drugs.
     #eventually do something more complicated
-    if(is.na(testDrug)||length(testDrug>1)){
+    if(is.na(testDrugs)||length(testDrugs>1)){
       gene.var<-newdf%>%group_by(Gene)%>%summarize(Variance=var(NetworkValue))
       nzvars<-which(gene.var$Variance>0)
       genes<-gene.var$Gene[nzvars]
