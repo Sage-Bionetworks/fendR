@@ -4,7 +4,7 @@
 \alias{scoreDataFromModel.basicFendR}
 \title{\code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set}
 \usage{
-\method{scoreDataFromModel}{basicFendR}(object)
+\method{scoreDataFromModel}{basicFendR}(object, unseenData)
 }
 \value{
 list of scores for each of the columns of the unseen feature data frame

@@ -5,7 +5,7 @@
 \title{Builds predictive model from network-augmented feature
 \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying}
 \usage{
-buildModelFromEngineeredFeatures(object)
+buildModelFromEngineeredFeatures(object, testDrugs)
 }
 \arguments{
 \item{object}{That contains a phenotypic data}

@@ -37,9 +37,9 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     all.phenos<-union(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
     print(paste("Found",length(phenos),'phenotypes that have feature data and outcome data out of',length(all.phenos)))
 
-    if(!is.na(testDrugs)&&testDrug%in%phenos){
+    if(!is.na(testDrugs)&&length(intersect(testDrugs,phenos))>1){
       print(paste("Reducing scope to only focus on",paste(testDrugs,collapse=',')))
-      phenos=testDrug
+      phenos=intersect(phenos,testDrugs)
     }
 
 
@@ -82,14 +82,12 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     for(i in 1:length(phenos))
       phen<-c(phen,rep(phenos[i],nrow(pheno.features[[i]])))
     newdf$Phenotype<-phen
-    #newdf$Phenotype<-unlist(sapply(phenos,rep,nrow(object$featureData)))
 
-#  pf<-gather(data.frame(pheno.features),"Phenotype","NetworkDistance",1:ncol(pheno.features))
 
     ##Reduction strategy:
     #if we have multiple drugs: remove any genes that don't change across drugs.
     #eventually do something more complicated
-    if(is.na(testDrug)||length(testDrug>1)){
+    if(is.na(testDrugs)||length(testDrugs>1)){
       gene.var<-newdf%>%group_by(Gene)%>%summarize(Variance=var(NetworkValue))
       nzvars<-which(gene.var$Variance>0)
       genes<-gene.var$Gene[nzvars]
@@ -111,11 +109,11 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
 #' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
 #' @param model
-#' @param unseenFeatures
+#' @param unseenData
 #' @keywords
 #' @export
 #' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel.basicFendR<-function(object){
+scoreDataFromModel.basicFendR<-function(object,unseenData){
 
 }
 

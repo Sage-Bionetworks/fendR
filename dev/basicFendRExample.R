@@ -25,11 +25,61 @@ fObj <- basicFendR(network=weighted_network,
  )
 
 testDrugs=c('selumetinib',"sorafenib","vorinostat")
+
+##TODO: leave out samples at a time, create features, then test.
 fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
 
 ##i commented these so they won't run just yet, but should be run across all fendR objects
-fObj<-buildModelFromEngineeredFeatures(fObj)
+fObj<-buildModelFromEngineeredFeatures(fObj,testDrugs)
 
 #score<-scoreDataFromModel(fObj)
+
+
+
+##eventually move these to some other function.
+##removes sample from feature data
+removeSampleFromObject <- function(obj,sampleName){
+  if(sampleName%in%unique(obj$sampleOutcomeData$Sample))
+    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Sample!=sampleName)
+  else
+    print(paste('Sample',sampleName,'not found in outcome data'))
+  return(obj)
+}
+
+##performs loo cross validation by sample - should we move to other file?
+looCrossValidation<-function(obj,testDrugs){
+  #iterate over all cell lines
+  all.samps<-intersect(obj$sampleOutcomeData$Sample,obj$featureData$Sample)
+
+  vals<-sapply(all.samps,function(x){
+
+    #subset out that data and re-assign original object
+    test.data<-subset(obj$sampleOutcomeData,Sample==x)
+    orig.test.features<-subset(obj$featureData,Sample==x)
+    aug.test.features<-subset(obj$remappedFeatures,Sample==x)
+
+    ##now remove from object
+    newObj<-removeSampleFromObject(fObj,x)
+
+    #create baseline model
+    baselineModelObj<-buildModelFromOriginalFeatures(newObj,testDrugs)
+
+    #get baseline predictions
+    baselinePreds<-scoreDataFromModel(baselineModelObj,orig.test.features,test.data)
+
+    #create new features
+    augmentedObj<-createNewFeaturesFromNetwork(newObj,testDrugs)
+
+    #create new model - this will replace the model list object in the class
+    augmentedObj<-buildModelFromEngineeredFeatures(augmentedObj,testDrugs)
+
+    updatedPreds<-scoreDataFromModel(baselineModelObj,aug.test.features,test.data)
+    data.frame(select(baselinePreds,originalPred=Prediction,Actual),select(updatedPreds,augmentedPred=Prediction))
+
+
+  })
+  vals
+
+}
 
 ##we can add some generic fendR methods as well, such as plotting, statistics, loo, etc.

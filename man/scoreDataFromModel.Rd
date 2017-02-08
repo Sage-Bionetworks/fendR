@@ -4,7 +4,7 @@
 \alias{scoreDataFromModel}
 \title{\code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set}
 \usage{
-scoreDataFromModel(object, unseenFeatures)
+scoreDataFromModel(object, unseenFeatures, unseenResponse)
 }
 \value{
 list of scores for each of the columns of the unseen feature data frame
