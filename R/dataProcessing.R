@@ -110,7 +110,7 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
   ret[lower.tri(ret)] <- temp[lower.tri(temp,diag = T)]; rm(temp); gc()
 
   if(is.null(outPath)){outPath = dirname(elPath)}
-  print(paste("writing out as to", outPath))
+  print(paste("writing out to", outPath))
   write_feather(as.data.frame(ret), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
 }
 
