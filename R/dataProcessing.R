@@ -87,7 +87,7 @@ loadTargetData <- function(fname){
 #' @import data.table tibble tidyr plyr bigmemory feather
 #' @export
 #' @return Data frame with at least 2 column
-edgeList2matrix =function(elPath, outType = "bigMatrix", outPath=NULL) # el (edge list) should be a data.tableish represenation of an edgelist with 1st 2 colums being gene names
+edgeList2matrix =function(elPath, outType = "feather", outPath=NULL) # el (edge list) should be a data.tableish represenation of an edgelist with 1st 2 colums being gene names
 {
   suppressPackageStartupMessages(library("data.table"))
   suppressPackageStartupMessages(library("tibble"))
@@ -95,10 +95,12 @@ edgeList2matrix =function(elPath, outType = "bigMatrix", outPath=NULL) # el (edg
   suppressPackageStartupMessages(library("plyr"))
   suppressPackageStartupMessages(library("bigmemory"))
   suppressPackageStartupMessages(library("feather"))
+
   el    <- fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","edge"); gc()              # names are needed for the plyr and tidyr calls
   el    <- as_tibble(el)
-  el    <- arrange(el, geneA, geneB); gc()                                                             # need it sorted before make into symetric matrix
+  print("spreading df to matrix")
   el    <- spread(el, key= "geneB", value = "edge"); gc()                                              # tidyr call to get matrix
+  print("filling in lower tri")
   temp  <- as.matrix(el[, 2:ncol(el)]); gc()                                                           # necessary for filling in lower tri
   gName <- c(el$geneA[1],colnames(el)[-1]); rm(el);gc()
   ret   <- matrix(1,ncol(temp)+1, ncol(temp)+1); colnames(ret) <- gName
@@ -108,6 +110,8 @@ edgeList2matrix =function(elPath, outType = "bigMatrix", outPath=NULL) # el (edg
   ret[lower.tri(ret)] <- temp[lower.tri(temp,diag = T)]; rm(temp); gc()
 
   if(is.null(outPath)){outPath = dirname(elPath)}
+  print(paste("writing out as", outType, "to ", outPath))
+  
   if(outType =="bigMatrix")
   {
     suppressPackageStartupMessages(library("bigmemory"))
