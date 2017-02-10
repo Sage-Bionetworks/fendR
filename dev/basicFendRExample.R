@@ -14,11 +14,12 @@ target.file<-system.file('CTRP_v20_drug_target_vals.tsv',package='fendR')
 target.data<-loadTargetData(target.file)
 
 network.file<-'https://github.com/fraenkel-lab/OmicsIntegrator/raw/master/data/iref_mitab_miscore_2013_08_12_interactome.txt'
-weighted_network<-loadNetwork(network.file)
 
 
-#create new forest class with data - both inheriting class info and additional
-fObj <- basicFendR(network=weighted_network,
+
+
+#create new basicFendR class with data - both inheriting class info and additional
+fObj <- basicFendR(networkFile=network.file,
   featureData=gene.data,
   sampleOutcomeData=pheno.data,
   phenoFeatureData = target.data
@@ -26,58 +27,12 @@ fObj <- basicFendR(network=weighted_network,
 
 testDrugs=c('selumetinib',"sorafenib","vorinostat")
 
-#fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
+#these are the four functions we need
+fObj<-loadNetwork(fObj)
+fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
 
-#fObj<-buildModelFromEngineeredFeatures(fObj,testDrugs)
+origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
+engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
 
-
-
-
-##eventually move these to some other function.
-##removes sample from feature data
-removeSampleFromObject <- function(obj,sampleName){
-  if(sampleName%in%unique(obj$sampleOutcomeData$Sample))
-    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Sample!=sampleName)
-  else
-    print(paste('Sample',sampleName,'not found in outcome data'))
-  return(obj)
-}
-
-##performs loo cross validation by sample - should we move to other file?
-looCrossValidation<-function(obj,testDrugs){
-  #iterate over all cell lines
-  all.samps<-intersect(obj$sampleOutcomeData$Sample,obj$featureData$Sample)
-
-  vals<-sapply(all.samps,function(x){
-    print(paste('Removing sample',x,'to evaluate'))
-    #subset out that data and re-assign original object
-    test.data<-subset(obj$sampleOutcomeData,Sample==x)
-    orig.test.features<-subset(obj$featureData,Sample==x)
-    aug.test.features<-subset(obj$remappedFeatures,Sample==x)
-
-    ##now remove from object
-    newObj<-removeSampleFromObject(obj,x)
-
-    #create baseline model
-    baselineModelObj<-buildModelFromOriginalFeatures(newObj,testDrugs)
-
-    #get baseline predictions
-    baselinePreds<-scoreDataFromModel(baselineModelObj,orig.test.features,test.data)
-
-    #create new features
-    augmentedObj<-createNewFeaturesFromNetwork(newObj,testDrugs)
-
-    #create new model - this will replace the model list object in the class
-    augmentedObj<-buildModelFromEngineeredFeatures(augmentedObj,testDrugs)
-
-    updatedPreds<-scoreDataFromModel(augmentedObj,aug.test.features,test.data)
-    df<-data.frame(select(baselinePreds,originalPred=Prediction,Actual),select(updatedPreds,augmentedPred=Prediction))
-    df$Drug<-rownames(df)
-    df$Sample<-rep(x,nrow(df))
-    df
-  })
-  vals
-
-}
 
 ##we can add some generic fendR methods as well, such as plotting, statistics, loo, etc.

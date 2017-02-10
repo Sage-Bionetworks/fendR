@@ -6,23 +6,6 @@
 ## other classes
 
 
-#' Load Network data
-#'
-#' \code{loadNetwork} takes a file path and formats it as network
-#' @param Path to network file
-#' @keywords network feather
-#' @export
-#' @import igraph
-#' @return an iGraph object where edge weights represent distance between nodes (smaller means *more* association)
-#' @examples
-loadNetwork <- function(fname){
-  library(igraph)
-  tab<-read.table(fname,stringsAsFactors =FALSE)
-  net<-graph_from_data_frame(tab,directed=F)
-  E(net)$weight<-1-min(tab[,3],1)
-  return(net)
-}
-
 #' Load sample data
 #'
 #' \code{loadSampleData} takes a file path and loads it into a data frame
@@ -36,7 +19,7 @@ loadSampleData <- function(fname){
   library(tidyr)
   tab<-read.table(fname,stringsAsFactors =FALSE)
   tab$Gene<-rownames(tab)
-  res<-gather(tab,"Sample","Value",1:(ncol(tab)-1))
+  res<-tidyr::gather(tab,"Sample","Value",1:(ncol(tab)-1))
   return(res)
 }
 
@@ -93,9 +76,9 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
   suppressPackageStartupMessages(library("tidyr"))
   suppressPackageStartupMessages(library("plyr"))
   suppressPackageStartupMessages(library("feather"))
-  
+
   writeLines("This function reads in a fully connected matrix as 3 column edge list:\n\"geneA geneB edge\"\nand writes out a NxN feather file...  Enjoy!")
-  
+
   el    <- fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","edge"); gc()              # names are needed for the plyr and tidyr calls
   el    <- as_tibble(el)
   print("spreading df to matrix")
