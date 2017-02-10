@@ -63,21 +63,23 @@ buildModelFromEngineeredFeatures <- function(object,testDrugs){
 #' @param testDrug name of drug to select from dataset to test in smaller context
 #' @keywords
 #' @export
+#' @import dplyr
 #' @return an object of class \code{fendR} with a list of \code{lm} objects
-buildModelFromEngineeredFeatures.fendR <- function(object,testDrugs=NA){
+buildModelFromEngineeredFeatures.fendR <- function(object,testDrugs=NULL){
+  suppressPackageStartupMessages(library(dplyr))
   print('Building linear model from remapped features')
 
 
    over<-intersect(object$sampleOutcomeData$Phenotype,object$remappedFeatures$Phenotype)
-  if(!is.na(testDrugs))
+  if(!is.null(testDrugs))
     over<-testDrugs
 
   all.mods<-lapply(over,function(x){
       print(paste('Creating model for',x))
-      mod.df<-inner_join(subset(object$sampleOutcomeData,Phenotype==x)%>%select(Sample,Response),subset(object$remappedFeatures,Phenotype==x),by="Sample")%>%select(Sample,Gene,Value,Response)
+      mod.df<-dplyr::inner_join(subset(object$sampleOutcomeData,Phenotype==x)%>%dplyr::select(Sample,Response),subset(object$remappedFeatures,Phenotype==x),by="Sample")%>%dplyr::select(Sample,Gene,Value,Response)
 
 
-        res<-spread(mod.df,Gene,value=Value)
+        res<-tidyr::spread(mod.df,Gene,value=Value)
         res<-res[,-which(colnames(res)=='Sample')]
         mod<-lm(Response~.,data=res)
       mod
@@ -94,17 +96,20 @@ buildModelFromEngineeredFeatures.fendR <- function(object,testDrugs=NA){
 #' @param testDrug name of drug to select from dataset to test in smaller context
 #' @keywords
 #' @export
+#' @import dplyr
 #' @return an fendR object with a list of \code{lm} objects
-buildModelFromOriginalFeatures.fendR <- function(object,testDrugs=NA){
+buildModelFromOriginalFeatures.fendR <- function(object,testDrugs=NULL){
+  library(dplyr)
   print('Building linear model from original features')
 
 
   over<-unique(object$sampleOutcomeData$Phenotype)
-  if(!is.na(testDrugs))
+  if(!is.null(testDrugs))
     over<-testDrugs
 
   #let's do a basic reduction here to test for genes who are not differentially mutated across samples
-  gene.var<-object$featureData%>%group_by(Gene)%>%summarize(Variance=var(Value))
+  gene.var<-object$featureData%>%dplyr::group_by(Gene)%>%dplyr::summarize(Variance=var(Value))
+ # print(head(gene.var))
 
   #nonzero genes
   nz.genes<-gene.var$Gene[which(gene.var$Variance!=0)]
@@ -114,8 +119,8 @@ buildModelFromOriginalFeatures.fendR <- function(object,testDrugs=NA){
   all.mods<-lapply(over,function(x){
     print(paste('Creating model for',x))
 
-    mod.df<-inner_join(subset(object$sampleOutcomeData,Phenotype==x),red.df,by="Sample")%>%select(Sample,Gene,Value,Response)
-    res<-spread(mod.df,Gene,value=Value)
+    mod.df<-dplyr::inner_join(subset(object$sampleOutcomeData,Phenotype==x),red.df,by="Sample")%>%select(Sample,Gene,Value,Response)
+    res<-tidyr::spread(mod.df,Gene,value=Value)
     res<-res[,-which(colnames(res)=='Sample')]
     mod<-lm(Response~.,data=res)
     mod
@@ -164,7 +169,7 @@ scoreDataFromModel.fendR <- function(object, unseenFeatures,unseenResponse){
     else
       ddf<-unseenFeatures
 
-    newvec<-select(ddf,Gene,Value)%>%spread(Gene,value=Value)
+    newvec<-dplyr::select(ddf,Gene,Value)%>%tidyr::spread(Gene,value=Value)
     predict(object$featureModel[[p]],newdata=newvec)[[1]]
   })
 

@@ -88,7 +88,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     #if we have multiple drugs: remove any genes that don't change across drugs.
     #eventually do something more complicated
     if(is.na(testDrugs)||length(testDrugs>1)){
-      gene.var<-newdf%>%group_by(Gene)%>%summarize(Variance=var(NetworkValue))
+      gene.var<-newdf%>%dplyr::group_by(Gene)%>%dplyr::summarize(Variance=var(NetworkValue))
       nzvars<-which(gene.var$Variance>0)
       genes<-gene.var$Gene[nzvars]
       print(paste('Keeping',length(nzvars),'gene values that change across drug treatments out of',length(gene.var$Gene)))
@@ -106,15 +106,5 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
 }
 
-
-#' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
-#' @param model
-#' @param unseenData
-#' @keywords
-#' @export
-#' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel.basicFendR<-function(object,unseenData){
-
-}
 
 

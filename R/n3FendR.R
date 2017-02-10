@@ -50,7 +50,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA){
     }
 
     ## Sparsify the data (featureData and network) by only considering a subset of
-    ## curated target.genes -- these are likely drug targets and/or "cancer genes," etc.  
+    ## curated target.genes -- these are likely drug targets and/or "cancer genes," etc.
     ## NB: by doing this up front/here we do not propagate mutations in non target genes
     ## to the target genes.
     full.gene.set <- unique(object$featureData$gene)
@@ -131,16 +131,3 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA){
   return(object)
 
 }
-
-
-#' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
-#' @param model
-#' @param unseenFeatures
-#' @keywords
-#' @export
-#' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel.basicFendR<-function(object){
-
-}
-
-
