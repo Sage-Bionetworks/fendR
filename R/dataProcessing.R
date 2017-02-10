@@ -17,7 +17,7 @@
 #' @examples
 loadNetwork <- function(fname){
   library(igraph)
-  tab<-read.table(fname)
+  tab<-read.table(fname,stringsAsFactors =FALSE)
   net<-graph_from_data_frame(tab,directed=F)
   E(net)$weight<-1-min(tab[,3],1)
   return(net)
@@ -34,7 +34,7 @@ loadNetwork <- function(fname){
 #' @return tidied data frame with columns 'Gene','Sample' and 'Value'
 loadSampleData <- function(fname){
   library(tidyr)
-  tab<-read.table(fname)
+  tab<-read.table(fname,stringsAsFactors =FALSE)
   tab$Gene<-rownames(tab)
   res<-gather(tab,"Sample","Value",1:(ncol(tab)-1))
   return(res)
@@ -66,7 +66,7 @@ loadPhenotypeData <- function(fname){
 #' @examples
 #' @return Data frame with at least 2 column
 loadTargetData <- function(fname){
-  tab<-read.table(fname,header=T)
+  tab<-read.table(fname,header=T,stringsAsFactors =FALSE)
   colnames(tab)<-c("Phenotype","Gene")
   tab
 }

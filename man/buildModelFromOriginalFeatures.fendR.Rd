@@ -5,7 +5,7 @@
 \title{Builds predictive model from original features
 \code{buildModelFromOriginalFeatures} takes the original features and creates a model based on an underlying}
 \usage{
-\method{buildModelFromOriginalFeatures}{fendR}(object, testDrugs = NA)
+\method{buildModelFromOriginalFeatures}{fendR}(object, testDrugs = NULL)
 }
 \arguments{
 \item{object}{That contains a phenotypic data}

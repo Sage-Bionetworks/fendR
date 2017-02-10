@@ -26,13 +26,10 @@ fObj <- basicFendR(network=weighted_network,
 
 testDrugs=c('selumetinib',"sorafenib","vorinostat")
 
-##TODO: leave out samples at a time, create features, then test.
-fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
+#fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
 
-##i commented these so they won't run just yet, but should be run across all fendR objects
-fObj<-buildModelFromEngineeredFeatures(fObj,testDrugs)
+#fObj<-buildModelFromEngineeredFeatures(fObj,testDrugs)
 
-#score<-scoreDataFromModel(fObj)
 
 
 
@@ -52,14 +49,14 @@ looCrossValidation<-function(obj,testDrugs){
   all.samps<-intersect(obj$sampleOutcomeData$Sample,obj$featureData$Sample)
 
   vals<-sapply(all.samps,function(x){
-
+    print(paste('Removing sample',x,'to evaluate'))
     #subset out that data and re-assign original object
     test.data<-subset(obj$sampleOutcomeData,Sample==x)
     orig.test.features<-subset(obj$featureData,Sample==x)
     aug.test.features<-subset(obj$remappedFeatures,Sample==x)
 
     ##now remove from object
-    newObj<-removeSampleFromObject(fObj,x)
+    newObj<-removeSampleFromObject(obj,x)
 
     #create baseline model
     baselineModelObj<-buildModelFromOriginalFeatures(newObj,testDrugs)
@@ -73,10 +70,11 @@ looCrossValidation<-function(obj,testDrugs){
     #create new model - this will replace the model list object in the class
     augmentedObj<-buildModelFromEngineeredFeatures(augmentedObj,testDrugs)
 
-    updatedPreds<-scoreDataFromModel(baselineModelObj,aug.test.features,test.data)
-    data.frame(select(baselinePreds,originalPred=Prediction,Actual),select(updatedPreds,augmentedPred=Prediction))
-
-
+    updatedPreds<-scoreDataFromModel(augmentedObj,aug.test.features,test.data)
+    df<-data.frame(select(baselinePreds,originalPred=Prediction,Actual),select(updatedPreds,augmentedPred=Prediction))
+    df$Drug<-rownames(df)
+    df$Sample<-rep(x,nrow(df))
+    df
   })
   vals
 
