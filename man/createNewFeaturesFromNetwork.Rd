@@ -2,20 +2,19 @@
 % Please edit documentation in R/fendR.R
 \name{createNewFeaturesFromNetwork}
 \alias{createNewFeaturesFromNetwork}
-\title{Engineer Features from Network
-\code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their
-score using the list of networks}
+\title{Engineer Features from Network}
 \usage{
 createNewFeaturesFromNetwork(object, testDrugs)
 }
 \arguments{
-\item{object}{That contains a data frame and network}
+\item{object}{fendR object after running \code{loadNetwork}}
 }
 \value{
-data.frame representing new gene by sample matrix that is augmented
+fendR object with the remappedFeature data.frame populated with four columns: Gene, Sample, Phenotype, Value
 }
 \description{
-Engineer Features from Network
-\code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their
-score using the list of networks
+Takes the igraph populated by \code{loadNetwork}
+and propagates scores to remapped features
 }
+\keyword{network}
+\keyword{propagation}

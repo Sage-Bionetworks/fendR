@@ -4,16 +4,16 @@
 \alias{fendR}
 \title{An S3 class to represent a fendR predictive network algorithm}
 \usage{
-fendR(network, featureData, phenoFeatureData, sampleOutcomeData)
+fendR(networkFile, featureData, phenoFeatureData, sampleOutcomeData)
 }
 \arguments{
-\item{network}{An iGraph network}
-
 \item{featureData}{a data.frame that contains rows representing genes and columns representing samples}
 
 \item{phenoFeatureData}{a data.frame where rows represent genes and columns represent a relationship between phenotype and gene}
 
 \item{sampleOutcomeData}{a data.frame representing at least one column of phenotype and rows representing samples}
+
+\item{network}{A network or path to network, depending on the underlying class}
 }
 \value{
 a fendR object

@@ -12,8 +12,8 @@
 #' @inheritParams fendR
 #' @export
 #' @return basicFendR object
-basicFendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData){
- me <-fendR(network, featureData, phenoFeatureData,sampleOutcomeData)
+basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData){
+ me <-fendR(networkFile, featureData, phenoFeatureData,sampleOutcomeData)
  class(me) <- append(class(me),'basicFendR')
  return(me)
 }
@@ -21,6 +21,24 @@ basicFendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData){
 ######################################################################
 # Set methods implemented by basicFendR
 
+
+#' Load Network data
+#'
+#' \code{loadNetwork} takes a file path and formats it as network
+#' @param Path to network file
+#' @keywords network feather
+#' @export
+#' @import igraph
+#' @return a fendR object with the graph parameter populated with an iGraph object where edge weights represent distance between nodes (smaller means *more* association)
+#' @examples
+loadNetwork.basicFendR <- function(fObj){
+  #library(igraph)
+  tab<-read.table(fObj$network,stringsAsFactors =FALSE)
+  net<-igraph::graph_from_data_frame(tab,directed=F)
+  E(net)$weight<-1-min(tab[,3],1)
+  fObj$graph <- net
+  return (fObj)
+}
 
 
 #' Engineer Features from Network
@@ -51,8 +69,9 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
       dt<-as.character(subset(object$phenoFeatureData,Phenotype==p)$Gene)
       print(paste('Calculating shortest path to',p,'target(s):',paste(dt,collapse=',')))
        #calculate shortest path between all drug targets and genes in feature set (that are in network)
-        gd<-distances(object$network,intersect(dt,names(V(object$network))),
-            intersect(object$featureData$Gene,names(V(object$network))))
+        gd<-distances(object$graph,intersect(dt,names(V(object$graph))),
+            intersect(object$featureData$Gene,names(V(object$graph))))
+
         #get minimum across all drug targets
         min.to.targ<-apply(gd,2,min)
         #remove Inf values
@@ -106,5 +125,23 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
 }
 
-
-
+#' Get Engineered Features as model matrix
+#' @description Gets a \code{list} of response matrices for a phenotype
+#' @export
+#' @import dplyr
+engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
+  if(length(phenotype)==0)
+    phenotype <- unique(fObj$remappedFeatures$Phenotype)
+  fres<-lapply(phenotype,function(p){
+    out.dat<-subset(fObj$sampleOutcomeData,Phenotype==p)
+    in.dat<-subset(fObj$remappedFeatures,Phenotype==p)
+    mod.df<-dplyr::inner_join(dplyr::select(in.dat,Sample,Gene,Value),out.dat,by="Sample")%>%dplyr::select(Sample,Gene,Value,Phenotype,Response)
+    res<-tidyr::spread(mod.df,Gene,value=Value)
+    res<-res[,-which(colnames(res)%in%c('Phenotype','Sample'))]
+    zvar<-which(apply(res,2,var)==0)
+    print(paste('Removing',length(zvar),'un-changing features from matrix'))
+    res<-res[,-zvar]
+    res
+  })
+  return(fres)
+}
