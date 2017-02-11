@@ -97,6 +97,139 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
   write_feather(as.data.frame(ret), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
 }
 
+#' translateMatrixIdentifiers
+#'
+#' \code{translateMatrixIdentifiers} translates the column and row identifers based on a translation table.  This may drop and/or duplicate columns and rows.
+#' @param matrix  A symmetric matrix
+#' @param translationTable  A data.frame that maps from names in column 'from' to names in column 'to'
+#' @param agg.fun A string name of a function that will be used to aggregrate multiple columns (from) into a single column (to).  Currently: mean, min, or max.
+#' @export
+#' @return A symmetric matrix with columns and rows translated (including dropped or duplicated) according to the translationTable.
+translateMatrixIdentifiers <- function(matrix, translationTable, agg.fun = "mean", debug = FALSE) 
+{
+  if(!("from" %in% colnames(translationTable))) {
+    stop("translationTable must have 'from' column\n")
+  }
+
+  if(!("to" %in% colnames(translationTable))) {
+    stop("translationTable must have 'to' column\n")
+  }
+
+  supported.agg.funcs <- c("mean", "max", "min")
+  if(!(agg.fun %in% supported.agg.funcs)) {
+    stop(paste0("Supported aggregate functions are: ", paste0(supported.agg.funcs, collapse=","), "\n"))
+  }
+
+  ## Note that the matrix is symmetric (i.e., rows = cols)
+  cols <- colnames(matrix)
+
+  ## Drop cols and rows that do not have a translation
+  cols.with.translation.flag <- (cols %in% mgi2HsMap$from)
+  cols.with.translation <- cols[cols.with.translation.flag]
+  cols.without.translation <- cols[!cols.with.translation.flag]
+  cat(paste0(length(cols.with.translation), " columns (of ", length(cols), ") have at least one translation\n"))
+
+  ## Since rows and columns are symmetric
+  rows.with.translation.flag <- cols.with.translation.flag
+
+  matrix <- matrix[rows.with.translation.flag, cols.with.translation.flag]
+  gc()
+
+  matrix <- as.matrix(matrix)
+  gc()
+
+  rownames(matrix) <- colnames(matrix)
+
+  ## Subset the translation table to those entries used in the matrix
+  translationTable <- translationTable[translationTable$from %in% colnames(matrix),]
+  translationTable <- unique(translationTable)
+
+  ## Create a map from col/row name to its index
+  df <- data.frame(name = colnames(matrix), index = 1:ncol(matrix))
+
+  ## Annotate the translation table with the relevant index of the entry in the 'from' column
+  tbl <- merge(translationTable, df, by.x = "from", by.y = "name")
+
+  indices <- as.numeric(tbl$index)
+
+  agg <- NULL
+  ret <- NULL
+  use.matrix.utils <- FALSE
+  if(use.matrix.utils) {
+    suppressPackageStartupMessages(library("Matrix.utils"))
+    if(agg.fun != "mean") {
+      stop("aggregate.Matrix only handles fun=mean\n")
+    }
+    agg <- t(aggregate.Matrix(t(matrix[indices,indices]), groupings=list(tbl$to), fun=agg.fun))
+    if(debug == TRUE) {
+      ## Output a column in the original matrix that is duplicated in the output matrix
+      tmp <- tbl[!duplicated(tbl$to, fromLast=TRUE) & !duplicated(tbl$to, fromLast=FALSE),]
+      tmp <- tmp[duplicated(tmp$from, fromLast=TRUE) | duplicated(tmp$from, fromLast=FALSE),]
+      tmp <- tmp[order(tmp$from),]
+      tmp <- head(tmp, 2)
+      cat("This single column:\n")
+      print(head(matrix[,tmp$from[1],drop=FALSE],5))
+      cat("Should be duplicated in each of these two columns:\n")
+      print(head(agg[,(colnames(agg) %in% tmp$to),drop=FALSE],6))
+
+      tmp <- tbl[duplicated(tbl$to, fromLast=TRUE) | duplicated(tbl$to, fromLast=FALSE),]
+      tmp <- tmp[!duplicated(tmp$from, fromLast=TRUE) & !duplicated(tmp$from, fromLast=FALSE),]
+      tmp <- tmp[order(tmp$to),]
+      tmp <- head(tmp, 2)
+      cat("\nThese two columns:\n")
+      print(head(matrix[,tmp$from,drop=FALSE],5))
+      cat(paste0("Should be summarized by ", agg.fun, " into this single column:\n"))
+      print(head(agg[,(colnames(agg) %in% tmp$to),drop=FALSE],6))
+    }
+    ret <- aggregate.Matrix(agg, groupings=list(tbl$to), fun=agg.fun)
+  } else {
+    suppressPackageStartupMessages(library("dplyr"))
+    df <- as.data.frame(matrix[indices, indices])
+    rownames(df) <- 1:nrow(df)
+    colnames(df) <- rownames(df)
+    df$group <- tbl$to
+    agg <- t((df %>% group_by(group) %>% summarise_each(funs_(agg.fun))))
+    if(debug == TRUE) {
+      ## Output a column in the original matrix that is duplicated in the output matrix
+      tmp <- tbl[!duplicated(tbl$to, fromLast=TRUE) & !duplicated(tbl$to, fromLast=FALSE),]
+      tmp <- tmp[duplicated(tmp$from, fromLast=TRUE) | duplicated(tmp$from, fromLast=FALSE),]
+      tmp <- tmp[order(tmp$from),]
+      tmp <- head(tmp, 2)
+      cat("This single column:\n")
+      print(head(matrix[,tmp$from[1],drop=FALSE],5))
+      cat("Should be duplicated in each of these two columns:\n")
+      print(head(agg[,(agg[1,] %in% tmp$to),drop=FALSE],6))
+
+      tmp <- tbl[duplicated(tbl$to, fromLast=TRUE) | duplicated(tbl$to, fromLast=FALSE),]
+      tmp <- tmp[!duplicated(tmp$from, fromLast=TRUE) & !duplicated(tmp$from, fromLast=FALSE),]
+      tmp <- tmp[order(tmp$to),]
+      tmp <- head(tmp, 2)
+      cat("\nThese two columns:\n")
+      print(head(matrix[,tmp$from,drop=FALSE],5))
+      cat(paste0("Should be summarized by ", agg.fun, " into this single column:\n"))
+      print(head(agg[,(agg[1,] %in% tmp$to),drop=FALSE],6))
+    }
+    colnames(agg) <- agg[1,]
+    agg <- (agg[-1,])
+    class(agg) <- "numeric"
+    df <- as.data.frame(agg)
+    df$group <- tbl$to
+    ret <- ((df %>% group_by(group) %>% summarise_each(funs_(agg.fun))))
+    labels <- ret$group
+    ret <- ret[,-1]
+    ret <- as.matrix(ret)
+    class(ret) <- "numeric"
+    rownames(ret) <- labels
+    colnames(ret) <- rownames(ret)
+  }
+
+  ## Confirm that the resulting matrix is symmetric
+  if((nrow(ret) != ncol(ret)) || (!(all(rownames(ret) == colnames(ret))))) {
+    stop("Translated matrix is not symmetric!\n")
+  }
+
+  ret
+}
 
 
 
