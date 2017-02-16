@@ -9,19 +9,18 @@
 
 #' An S3 class to represent the nearest-neighbor network implementation of the fendR predictive
 #' network algorithm.
-#' @param network the file name of a feather or big.matrix object representing a dense matrix
+#' @param network the file name of a feather object representing a dense matrix
 #' @param featureData a data.frame that contains rows representing genes and columns representing samples
 #' @param sampleOutcomeData a data.frame representing at least one column of phenotype and rows representing samples
 #' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
 #' @param target.genes a vector of target gene names (a subset of those in featureData) that will be used to sparsify the network
-#' @param network.type the on-disk representation of the network (either "feather" or "big.memory")
 #' @inheritParams fendR
 #' @export
 #' @return n3FendR object
-n3FendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData, target.genes, network.type){
- me <-fendR(network, featureData, phenoFeatureData,sampleOutcomeData)
- me <- append(me, list(target.genes = target.genes, network.type = network.type))
- class(me) <- append(class(me),'n3FendR')
+n3FendR<-function(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes) {
+ me <-fendR(network, featureData, phenoFeatureData, sampleOutcomeData)
+ me <- append(me, list(target.genes = target.genes))
+ class(me) <- append(class(me), 'n3FendR')
  return(me)
 }
 
@@ -37,23 +36,23 @@ n3FendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData, targ
 #' @export
 #' @import dplyr
 #' @return list of gene features for each phenotype/drug response
-createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA){
-    library(dplyr)
-    ##figure out which phenotypes have both feature data and outcome data
-    phenos <- intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
-    all.phenos <- union(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
-    cat(paste0("Found ", length(phenos), "phenotypes that have feature data and outcome data out of", length(all.phenos), "\n"))
+createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
+    suppressPackageStartupMessages(library(plyr))
+    suppressPackageStartupMessages(library(feather))
 
-    if(!is.na(testDrugs) && any(testDrug%in%phenos)) {
-      cat(paste0("Reducing scope to only focus on ", paste(testDrugs, collapse=','), " drugs\n"))
-      phenos <- phenos[phenos %in% testDrug]
-    }
+    sampleOutcomeData <- object$sampleOutcomeData
+    phenoFeatureData <- object$phenoFeatureData
+    featureData <- object$featureData
 
-    ## Sparsify the data (featureData and network) by only considering a subset of
+    ## Sparsify the data (featureData, phenoFeatureData, and network) by only considering a subset of
     ## curated target.genes -- these are likely drug targets and/or "cancer genes," etc.
     ## NB: by doing this up front/here we do not propagate mutations in non target genes
     ## to the target genes.
-    full.gene.set <- unique(object$featureData$gene)
+
+    ## Get the genes in the network
+    all.network.genes <- names(feather_metadata(object$network)$types)
+
+    full.gene.set <- unique(intersect(featureData$Gene, intersect(phenoFeatureData$Gene, all.network.genes)))
     num.genes.in.full.feature.space <- length(full.gene.set)
     reduced.gene.set <- full.gene.set
     if(!is.na(object$target.genes) && !is.null(object$target.genes)) {
@@ -67,67 +66,108 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA){
       cat("Not sparsifying data or network\n")
     }
 
-    #TODO: investigate how these can be done with dplyr/mutate?
+    featureData <- subset(featureData, Gene %in% reduced.gene.set)
+    phenoFeatureData <- subset(phenoFeatureData, Gene %in% reduced.gene.set)
+    
+    ## Subset to phenotypes having both feature data and outcome data
+    phenos <- intersect(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
+    all.phenos <- union(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
+    cat(paste0("Found ", length(phenos), " phenotypes that have feature data and outcome data out of ", length(all.phenos), "\n"))
 
-    ##for each phenotype, update the gene value by the shortest path to the gene target
-    pheno.updates<-lapply(phenos,function(p){
-      dt<-as.character(subset(object$phenoFeatureData,Phenotype==p)$Gene)
-      print(paste('Calculating shortest path to',p,'target(s):',paste(dt,collapse=',')))
-       #calculate shortest path between all drug targets and genes in feature set (that are in network)
-        gd<-distances(object$network,intersect(dt,names(V(object$network))),
-            intersect(object$featureData$Gene,names(V(object$network))))
-        #get minimum across all drug targets
-        min.to.targ<-apply(gd,2,min)
-        #remove Inf values
-        min.to.targ<-min.to.targ[which(is.finite(min.to.targ))]
-        min.to.targ
-    })
-
-    ##update from featureData the score by shortest weighted path to target genes
-    ##this is ridiculously time-consuming
-    pheno.features<-lapply(pheno.updates,function(x){
-      ##find out features with graph data
-      nzFeatures<-intersect(names(x),object$featureData$Gene)
-
-      zFeat<-setdiff(object$featureData$Gene,names(x))
-
-      #create new data frame with features
-      ddf<-data.frame(Gene=as.character(c(nzFeatures,zFeat)),
-        FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))))
-      ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
-
-      new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
-      return(new.fd)
-    })
-    #move to data frame
-    newdf<-do.call('rbind',pheno.features)
-    #now add back phenotype information
-    phen<-c()
-    for(i in 1:length(phenos))
-      phen<-c(phen,rep(phenos[i],nrow(pheno.features[[i]])))
-    newdf$Phenotype<-phen
-    #newdf$Phenotype<-unlist(sapply(phenos,rep,nrow(object$featureData)))
-
-#  pf<-gather(data.frame(pheno.features),"Phenotype","NetworkDistance",1:ncol(pheno.features))
-
-    ##Reduction strategy:
-    #if we have multiple drugs: remove any genes that don't change across drugs.
-    #eventually do something more complicated
-    if(is.na(testDrug)||length(testDrug>1)){
-      gene.var<-newdf%>%group_by(Gene)%>%summarize(Variance=var(NetworkValue))
-      nzvars<-which(gene.var$Variance>0)
-      genes<-gene.var$Gene[nzvars]
-      print(paste('Keeping',length(nzvars),'gene values that change across drug treatments out of',length(gene.var$Gene)))
-    }else{
-       nzvars<-which(mutate(newdf,Diff=Value-NetworkValue)$Diff!=0)
-       genes<-newdf$Gene[nzvars]
-      print(paste('Keeping',length(nzvars),'gene values are altered by the network out of',nrow(newdf)))
+    if(!is.na(testDrugs) && any(testDrugs %in% phenos)) {
+      cat(paste0("Reducing scope to only focus on ", paste(testDrugs, collapse=', '), " drugs\n"))
+      phenos <- phenos[phenos %in% testDrugs]
     }
-    newdf<-subset(newdf,Gene%in%genes)
 
-    object$remappedFeatures<-newdf%>%select(Gene,Sample,Phenotype,
-      Value=NetworkValue)
+    ## Convert featureData in tidy format to a matrix m (with rows = samples, columns = genes)
+    ## having entries m_sg for sample s and gene g
+    m <- tidyr::spread(featureData, key="Sample", value="Value")
+    rownames(m) <- m$Gene
+    m <- m[, colnames(m) != "Gene"]
+    m <- t(m)
+    m <- as.matrix(m[, reduced.gene.set])
 
-  return(object)
+    ## For each anchor (e.g., drug target) a of phenotype (e.g., drug) p, define a feature matrix m^a 
+    ## by propagating mutations in the original matrix m to nearest neighbors.  The network induced by anchor a is
+    ## represented by the edge list e^a_gg', where e^a_gg' > 0 only if g and/or g' = a and/or g = g' 
+    ## The feature matrix m^d _for the phenotype_ is then defined over all anchors a for that phenotype
+    ## e.g., by assigning 
+    ## m^d_sg = max_a m^a_sg, or
+    ## m^d_sg = min_a m^a_sg, or
+    ## m^d_sg = mean_a m^a_sg
+    ## 
+    ## If g = anchor a, then
+    ## m^a_sg = \sum_g' e^a_gg' m_sg'  (i.e., matrix x vector: m^a_,g = m e^a)
+    ## If g != anchor a, then
+    ## m^a_sg = delta_a,g' e_gg' m_sg' + delta_g,g' e_gg' m_sg'
+    ## i.e., for a non-anchor g, the only contributions are from g and from the anchor a
 
+    ## TODO: parallelize this with plyr
+
+    ## For each phenotype/drug
+    pheno.features <- lapply(phenos, function(pheno) {
+
+      ## For each gene target of that phenotype/drug
+      anchors <- as.character(subset(phenoFeatureData, Phenotype == pheno)$Gene)
+      cat(paste0("Performing nearest neighbor proportion for phenotype ", pheno, " with target(s): ", paste(anchors, collapse=","), "\n"))
+
+      ## For each gene target/anchor of that phenotype/drug, propagate mutation to nearest neighbors
+      anchor.responses <- lapply(anchors, function(anchor) {
+        ## Read in column of feather network 
+        ## NB: we have ensured above this gene is in the network, so this read will not fail.
+        anchor.weights <- as.data.frame(read_feather(object$network, columns=c(anchor)))[,1]
+        names(anchor.weights) <- all.network.genes
+        anchor.weights <- as.matrix(anchor.weights[reduced.gene.set])
+        names(anchor.weights) <- reduced.gene.set
+        m.a <- matrix(data = 0, nrow = nrow(m), ncol = ncol(m))
+        rownames(m.a) <- rownames(m)
+        colnames(m.a) <- colnames(m)
+        ## m^a_sg = \sum_g' e^a_gg' m_sg'  (i.e., matrix x vector: m^a_,g = m e^a)
+        ## Handle the anchor 
+	m.a[, anchor] <- m %*% anchor.weights
+        ## For each non-anchor neighbor
+        ## If g != anchor a, then
+        ## m^a_sg = delta_a,g' e_gg' m_sg' + delta_g,g' e_gg' m_sg'
+        ## i.e., for a non-anchor g, the only contributions are from g and from the anchor a
+        non.anchors <- names(anchor.weights)[names(anchor.weights) != anchor]
+        for(nn in non.anchors) {
+          ## Below assumes that e_gg = 1
+          ## m.a[, nn] <- ( m[, anchor] * anchor.weights[nn] ) + ( m[, nn] * 1 )
+          ## Don't assume that e_gg = 1.  Instead, we need to read the column for this
+          ## nearest neighbor nn from the feather object
+          nn.weights <- as.data.frame(read_feather(object$network, columns=c(nn)))[,1]
+          names(nn.weights) <- all.network.genes
+          nn.weights <- as.matrix(nn.weights[reduced.gene.set])
+          names(nn.weights) <- reduced.gene.set
+          m.a[, nn] <- ( m[, anchor] * nn.weights[anchor] ) + ( m[, nn] * nn.weights[nn] )
+        }
+        m.a  
+      })
+
+      ## anchor.response is a list of matrices m.a over anchors a.
+      ## Define a single aggregate matrix m.p over the phenotype p.
+      ## Obvious ways to do this include:
+      ## 1. Taking elementwise means across the m.a matrices
+      m.d <- apply(simplify2array(anchor.responses), c(1,2), mean)
+      ## 2. Taking the elementwise min across the m.a matrices
+      ## m.d <- apply(simplify2array(anchor.responses), c(1,2), min)
+      ## 3. Taking the elementwise max across the m.a matrices
+      ## m.d <- apply(simplify2array(anchor.responses), c(1,2), max)
+
+      ## Convert to matrix to tidy format
+      df <- as.data.frame(m.d)
+      df$Gene <- rownames(df)
+      df <- tidyr::gather(df, key="Sample", value="Value", -Gene)
+      df$Phenotype <- pheno
+      gc()
+      df
+    })
+
+    ## Convert to data frame
+    newdf <- do.call('rbind', pheno.features)
+
+    ## Store the remapped features in the object
+    object$remappedFeatures <- newdf
+
+    return(object)
 }
