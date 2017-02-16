@@ -56,7 +56,8 @@ crossValidationCompare <- function(fendRObj,modelCall='lm',testPheno=c(),feature
       })
 
     #predictions on test data
-    updatedPreds<-scoreDataFromModel(augmentedObj,aug.test.features,test.data)
+## scoreDataFromModel is not defined
+##    updatedPreds<-scoreDataFromModel(augmentedObj,aug.test.features,test.data)
     df<-data.frame(select(baselinePreds,originalPred=Prediction,Actual),select(updatedPreds,augmentedPred=Prediction))
     df$Drug<-rownames(df)
     df$Sample<-rep(x,nrow(df))
