@@ -8,7 +8,7 @@ network algorithm}
 forestFendR(network, featureData, phenoData, forestPath)
 }
 \arguments{
-\item{network}{An iGraph network}
+\item{network}{A network or path to network, depending on the underlying class}
 
 \item{featureData}{a data.frame that contains rows representing genes and columns representing samples}
 

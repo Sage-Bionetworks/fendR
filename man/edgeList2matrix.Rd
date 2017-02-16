@@ -4,17 +4,15 @@
 \alias{edgeList2matrix}
 \title{edgeList2matrix convertion and write out}
 \usage{
-edgeList2matrix(elPath, outType = "bigMatrix", outPath = NULL)
+edgeList2matrix(elPath, outPath = NULL)
 }
 \arguments{
 \item{elPath}{file path to edge list file with three colums, geneA, geneB and edge}
 
-\item{outType}{bigMatrix or feather}
-
 \item{outPath}{directory for output if NULL it will be same as input file}
 }
 \value{
-Data frame with at least 2 column
+NULL if successfull,error otherwise
 }
 \description{
 \code{edgeList2matrix} loads in the target/phenotype data with the first column representing the drug of choice and the second represneting the gene

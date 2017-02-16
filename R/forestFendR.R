@@ -173,14 +173,5 @@ augmentFeaturesWithGraph<-function(object,graph){
 
 }
 
-#' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
-#' @param model
-#' @param unseenFeatures
-#' @keywords
-#' @export
-#' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel.forestFendR<-function(object){
-
-}
 
 
