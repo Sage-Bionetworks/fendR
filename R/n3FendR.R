@@ -14,14 +14,43 @@
 #' @param sampleOutcomeData a data.frame representing at least one column of phenotype and rows representing samples
 #' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
 #' @param target.genes a vector of target gene names (a subset of those in featureData) that will be used to sparsify the network
+#' @param testDrugs a vector of drug names to be used to subset the data (e.g., for debugging/efficiency purposes)
 #' @inheritParams fendR
 #' @export
 #' @return n3FendR object
-n3FendR<-function(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes) {
- me <-fendR(network, featureData, phenoFeatureData, sampleOutcomeData)
- me <- append(me, list(target.genes = target.genes))
- class(me) <- append(class(me), 'n3FendR')
- return(me)
+n3FendR <- function(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes, testDrugs = NA) {
+    
+  phenos <- intersect(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
+  if(!is.na(testDrugs) && any(testDrugs %in% phenos)) {
+    cat(paste0("Reducing scope to only focus on ", paste(testDrugs, collapse=', '), " drugs\n"))
+    phenos <- phenos[phenos %in% testDrugs]
+  }
+  sampleOutcomeData <- subset(sampleOutcomeData, Phenotype %in% phenos)
+  phenoFeatureData <- subset(phenoFeatureData, Phenotype %in% phenos)
+
+  me <-fendR(network, featureData, phenoFeatureData, sampleOutcomeData)
+  cls.me <- class(me)
+
+  ## Get the genes in the network
+  all.network.genes <- names(feather_metadata(network)$types)
+
+  full.gene.set <- unique(intersect(featureData$Gene, intersect(phenoFeatureData$Gene, all.network.genes)))
+  num.genes.in.full.feature.space <- length(full.gene.set)
+  reduced.gene.set <- full.gene.set
+  if(!is.na(target.genes) && !is.null(target.genes)) {
+    if(!any(target.genes %in% full.gene.set)) {
+      stop("None of target genes are in the featureData")
+    }
+    reduced.gene.set <- full.gene.set[full.gene.set %in% target.genes]
+    cat(paste0("Reducing feature space from ", num.genes.in.full.feature.space, " to ", length(reduced.gene.set), "\n"))
+  } else {
+    cat(paste0("Using all ", num.genes.in.full.feature.space, " genes in featureData.\n"))
+    cat("Not sparsifying data or network\n")
+  }
+
+  me <- append(me, list(target.genes = target.genes, reduced.gene.set = reduced.gene.set, all.network.genes = all.network.genes))
+  class(me) <- c("n3FendR", cls.me)
+  return(me)
 }
 
 ######################################################################
@@ -49,25 +78,8 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
     ## NB: by doing this up front/here we do not propagate mutations in non target genes
     ## to the target genes.
 
-    ## Get the genes in the network
-    all.network.genes <- names(feather_metadata(object$network)$types)
-
-    full.gene.set <- unique(intersect(featureData$Gene, intersect(phenoFeatureData$Gene, all.network.genes)))
-    num.genes.in.full.feature.space <- length(full.gene.set)
-    reduced.gene.set <- full.gene.set
-    if(!is.na(object$target.genes) && !is.null(object$target.genes)) {
-      if(!any(object$target.genes %in% full.gene.set)) {
-        stop("None of target genes are in the featureData")
-      }
-      reduced.gene.set <- full.gene.set[full.gene.set %in% object$target.genes]
-      cat(paste0("Reducing feature space from ", num.genes.in.full.feature.space, " to ", length(reduced.gene.set), "\n"))
-    } else {
-      cat(paste0("Using all ", num.genes.in.full.feature.space, " genes in featureData.\n"))
-      cat("Not sparsifying data or network\n")
-    }
-
-    featureData <- subset(featureData, Gene %in% reduced.gene.set)
-    phenoFeatureData <- subset(phenoFeatureData, Gene %in% reduced.gene.set)
+    featureData <- subset(featureData, Gene %in% object$reduced.gene.set)
+    phenoFeatureData <- subset(phenoFeatureData, Gene %in% object$reduced.gene.set)
     
     ## Subset to phenotypes having both feature data and outcome data
     phenos <- intersect(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
@@ -75,6 +87,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
     cat(paste0("Found ", length(phenos), " phenotypes that have feature data and outcome data out of ", length(all.phenos), "\n"))
 
     if(!is.na(testDrugs) && any(testDrugs %in% phenos)) {
+      stop("This should be done in the constructor.")
       cat(paste0("Reducing scope to only focus on ", paste(testDrugs, collapse=', '), " drugs\n"))
       phenos <- phenos[phenos %in% testDrugs]
     }
@@ -85,7 +98,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
     rownames(m) <- m$Gene
     m <- m[, colnames(m) != "Gene"]
     m <- t(m)
-    m <- as.matrix(m[, reduced.gene.set])
+    m <- as.matrix(m[, object$reduced.gene.set])
 
     ## For each anchor (e.g., drug target) a of phenotype (e.g., drug) p, define a feature matrix m^a 
     ## by propagating mutations in the original matrix m to nearest neighbors.  The network induced by anchor a is
@@ -116,9 +129,9 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
         ## Read in column of feather network 
         ## NB: we have ensured above this gene is in the network, so this read will not fail.
         anchor.weights <- as.data.frame(read_feather(object$network, columns=c(anchor)))[,1]
-        names(anchor.weights) <- all.network.genes
-        anchor.weights <- as.matrix(anchor.weights[reduced.gene.set])
-        names(anchor.weights) <- reduced.gene.set
+        names(anchor.weights) <- object$all.network.genes
+        anchor.weights <- as.matrix(anchor.weights[object$reduced.gene.set])
+        names(anchor.weights) <- object$reduced.gene.set
         m.a <- matrix(data = 0, nrow = nrow(m), ncol = ncol(m))
         rownames(m.a) <- rownames(m)
         colnames(m.a) <- colnames(m)
@@ -136,9 +149,9 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
           ## Don't assume that e_gg = 1.  Instead, we need to read the column for this
           ## nearest neighbor nn from the feather object
           nn.weights <- as.data.frame(read_feather(object$network, columns=c(nn)))[,1]
-          names(nn.weights) <- all.network.genes
-          nn.weights <- as.matrix(nn.weights[reduced.gene.set])
-          names(nn.weights) <- reduced.gene.set
+          names(nn.weights) <- object$all.network.genes
+          nn.weights <- as.matrix(nn.weights[object$reduced.gene.set])
+          names(nn.weights) <- object$reduced.gene.set
           m.a[, nn] <- ( m[, anchor] * nn.weights[anchor] ) + ( m[, nn] * nn.weights[nn] )
         }
         m.a  
@@ -154,8 +167,14 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
       ## 3. Taking the elementwise max across the m.a matrices
       ## m.d <- apply(simplify2array(anchor.responses), c(1,2), max)
 
+      ## Return the results in matrix, rather than tidy, format
+      ## Append the phenotype name to the sample
+      rownames(m.d) <- paste(pheno, rownames(m.d), sep=".")
+      gc()
+      return(m.d)
+
       ## Convert to matrix to tidy format
-      df <- as.data.frame(m.d)
+      df <- as.data.frame(t(m.d))
       df$Gene <- rownames(df)
       df <- tidyr::gather(df, key="Sample", value="Value", -Gene)
       df$Phenotype <- pheno
@@ -170,4 +189,71 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA) {
     object$remappedFeatures <- newdf
 
     return(object)
+}
+
+#' Return feature matrix, consisting of the original features and the associated responses in column Response.
+#' @description Creates a matrix suitable for modeling with the formula Response ~ from the original features.
+#' @keywords model fendR
+#' @keywords limit.to.engineered.genes Boolen indicating whether the returned features should be limited to those used in the engineered features (which may be restricted beyond the target.genes passed to the constructor by those in the network)
+#' @export
+#' @return A matrix suitable for modeling with the formula Response ~ from the original features, whose columns are genes and the Response and whose rows are "phenotype" . "sample".
+originalResponseMatrix.n3FendR <- function(object, phenotype=c(), limit.to.engineered.genes = FALSE){
+
+  if(length(phenotype)>0) {
+    stop("Restrict drugs/phenotypes in the constructor; not here")
+  }
+
+  ## NB: for now, we will not subset the data to the target genes. 
+  ## We might want to do that for sake of comparison.
+  
+  ## Convert featureData in tidy format to a matrix m (with rows = samples, columns = genes)
+  ## having entries m_sg for sample s and gene g
+  featureData <- object$featureData
+  m <- tidyr::spread(featureData, key="Sample", value="Value")
+  rownames(m) <- m$Gene
+  m <- m[, colnames(m) != "Gene"]
+  m <- t(m)
+
+  if(limit.to.engineered.genes) {
+    m <- as.matrix(m[, object$reduced.gene.set])
+  }
+
+  phenos <- intersect(object$sampleOutcomeData$Phenotype, object$phenoFeatureData$Phenotype)
+
+  ## Create a feature matrix that simply appends the original feature matrices vertically.
+  ## But also append rownames that give the sample and phenotype.
+  pheno.features <- lapply(phenos, function(pheno) { 
+    ## Append the phenotype name to the sample
+    m.d <- m
+    rownames(m.d) <- paste(pheno, rownames(m.d), sep=".")
+    gc()
+    return(m.d)
+  })
+
+  ## Convert to data frame
+  newdf <- do.call('rbind', pheno.features)
+
+  df <- data.frame(Response=object$sampleOutcomeData$Response)
+  rownames(df) <- unlist(apply(object$sampleOutcomeData[, c("Sample", "Phenotype")], 1, function(row) paste(row[2], row[1], sep=".")))
+  df <- merge(df, newdf, by="row.names", all=FALSE)
+  rownames(df) <- df$Row.names
+  df <- df[, (colnames(df) != "Row.names")]
+  df
+}
+
+#' Return re-engineered feature matrix, consisting of re-engineered features and the associated responses in column Response.
+#' @description Creates a matrix suitable for modeling with the formula Response ~ from the re-engineered features.
+#' @keywords model fendR
+#' @export
+#' @return A matrix suitable for modeling with the formula Response ~ from the re-engineered features, whose columns are genes and the Response and whose rows are "phenotype" . "sample".
+engineeredResponseMatrix.n3FendR <- function(object,phenotype=c()){
+  if(length(phenotype)>0) {
+    stop("Restrict drugs/phenotypes in the constructor; not here")
+  }
+  df <- data.frame(Response=object$sampleOutcomeData$Response)
+  rownames(df) <- unlist(apply(object$sampleOutcomeData[, c("Sample", "Phenotype")], 1, function(row) paste(row[2], row[1], sep=".")))
+  df <- merge(df, object$remappedFeatures, by="row.names", all=FALSE)
+  rownames(df) <- df$Row.names
+  df <- df[, (colnames(df) != "Row.names")]
+  df
 }

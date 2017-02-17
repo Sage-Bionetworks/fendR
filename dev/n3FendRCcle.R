@@ -21,35 +21,24 @@ network.file <- getFileLocation(synGet("syn8265096"))
 
 target.genes <- unique(target.data$Gene)
 
+testDrugs=c('selumetinib',"sorafenib","vorinostat")
+
 # Create the n3 fendR object
 fObj <- n3FendR(network = network.file,
   featureData = gene.data,
   sampleOutcomeData = pheno.data,
   phenoFeatureData = target.data,
-  target.genes = target.genes
- )
+  target.genes = target.genes,
+  testDrugs = testDrugs
+)
 
-testDrugs=c('selumetinib',"sorafenib","vorinostat")
 
-res <- createNewFeaturesFromNetwork(fObj, testDrugs)
+fObj <- createNewFeaturesFromNetwork(fObj)
+
+m.engineered <- engineeredResponseMatrix(fObj)
+m.orig <- originalResponseMatrix(fObj)
 
 stop("stop")
-
-
-#fObj<-buildModelFromEngineeredFeatures(fObj,testDrugs)
-
-
-
-
-##eventually move these to some other function.
-##removes sample from feature data
-removeSampleFromObject <- function(obj,sampleName){
-  if(sampleName%in%unique(obj$sampleOutcomeData$Sample))
-    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Sample!=sampleName)
-  else
-    print(paste('Sample',sampleName,'not found in outcome data'))
-  return(obj)
-}
 
 ##performs loo cross validation by sample - should we move to other file?
 looCrossValidation<-function(obj,testDrugs){
