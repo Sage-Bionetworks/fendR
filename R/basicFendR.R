@@ -36,6 +36,7 @@ loadNetwork.basicFendR <- function(fObj){
   tab<-read.table(fObj$network,stringsAsFactors =FALSE)
   net<-igraph::graph_from_data_frame(tab,directed=F)
   E(net)$weight<-1-min(tab[,3],1)
+  net<-delete_vertices(net,'UBC')
   fObj$graph <- net
   return (fObj)
 }
@@ -60,9 +61,6 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
       print(paste("Reducing scope to only focus on",paste(testDrugs,collapse=',')))
       phenos=phenos[phenos %in% testDrugs]
     }
-
-
-    #TODO: investigate how these can be done with dplyr/mutate?
 
     ##for each phenotype, update the gene value by the shortest path to the gene target
     pheno.updates<-lapply(phenos,function(p){
@@ -90,6 +88,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
       #create new data frame with features
       ddf<-data.frame(Gene=as.character(c(nzFeatures,zFeat)),
         FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))), stringsAsFactors=FALSE)
+
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
       new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
       return(new.fd)
@@ -132,16 +131,26 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
   if(length(phenotype)==0)
     phenotype <- unique(fObj$remappedFeatures$Phenotype)
-  fres<-lapply(phenotype,function(p){
-    out.dat<-subset(fObj$sampleOutcomeData,Phenotype==p)
-    in.dat<-subset(fObj$remappedFeatures,Phenotype==p)
-    mod.df<-dplyr::inner_join(dplyr::select(in.dat,Sample,Gene,Value),out.dat,by="Sample")%>%dplyr::select(Sample,Gene,Value,Phenotype,Response)
-    res<-tidyr::spread(mod.df,Gene,value=Value)
-    res<-res[,-which(colnames(res)%in%c('Phenotype','Sample'))]
-    zvar<-which(apply(res,2,var)==0)
-    print(paste('Removing',length(zvar),'un-changing features from matrix'))
-    res<-res[,-zvar]
-    res
-  })
-  return(fres)
+
+
+  out.dat<-subset(fObj$sampleOutcomeData,Phenotype%in%phenotype)
+  in.dat<-subset(fObj$remappedFeatures,Phenotype%in%phenotype)
+
+  mod.df<-dplyr::inner_join(out.dat,dplyr::select(in.dat,Sample,Gene,Value),by="Sample")%>%dplyr::select(Sample,Gene,Value,Phenotype,Response)
+
+#  mod.df<-filter(mod.df,!Sample%in%sampsToOmit)
+  mod.df<-mutate(mod.df,SamplePheno=paste(Sample,Phenotype,sep='_'))
+  dupes<-which(duplicated(select(mod.df,Gene,SamplePheno)))
+  res<-tidyr::spread(select(mod.df[-dupes,],Gene,Value,SamplePheno,Response,Phenotype,Sample),Gene,Value)
+
+  rownames(res)<-res$SamplePheno
+  res<-res[,-which(colnames(res)%in%c('Gene','SamplePheno'))]
+
+  zvar<-which(apply(res,2,var)==0)
+  print(paste('Removing',length(zvar),'un-changing features from matrix'))
+  res<-res[,-zvar]
+  res
+
+
+
 }

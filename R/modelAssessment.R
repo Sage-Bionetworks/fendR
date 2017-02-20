@@ -13,70 +13,67 @@
 #' @keywords INCOMPLETE
 #' @export
 #' @return Not sure yet...
-crossValidationCompare <- function(fendRObj,modelCall='lm',testPheno=c(),featuresIndependent=TRUE){
+crossValidationCompare <- function(fendRObj,
+  modelCall='lm',
+  testPheno=c(),
+  samplesIndependent=TRUE){
 
   ##get a list of all samples
-  all.samps<-intersect(obj$sampleOutcomeData$Sample,obj$featureData$Sample)
+  all.samps<-intersect(fendRObj$sampleOutcomeData$Sample,fendRObj$featureData$Sample)
 
   if(is.null(fendRObj$graph))
     fendRObj <- loadNetwork(fendRObj) ###only need to load graph once
 
-  if(featuresIndependent)
-    fendRObj<-createNewFeaturesFromNetwork(fendRObj)
+  if(samplesIndependent)##if the samples are independent we can generate this once
+    fendRObj<-createNewFeaturesFromNetwork(fendRObj,testPheno)
 
-  #for each sample, leave one
-  vals<-sapply(all.samps,function(x){
+  ##FIX
+  ##for now we assume that all models are assume independence between samples AND Drugs
+  origMatrix<-originalResponseMatrix(fendRObj)
+  engMatrix<-engineeredResponseMatrix(fendRObj)
 
-    print(paste('Removing sample',x,'to evaluate'))
-
+  #for each sample, leave one out
+  vals<-lapply(all.samps,function(x){
 
     #subset out that data and re-assign original object
     test.data<-subset(fendRObj$sampleOutcomeData,Sample==x)
     orig.test.features<-subset(fendRObj$featureData,Sample==x)
-    aug.test.features<-subset(fendRObj$remappedFeatures,Sample==x)
+    otf<-orig.test.features$Value
+    names(otf)<-orig.test.features$Gene
 
-    testObj<-removeSampleFromObject(fendRObj,x)
-
-    ##if features depend on samples we need to re-engineer?
-    if(!featuresIndependent){
-      testObj<-createNewFeaturesFromNetwork(testObj,testDrugs)
-    }
-
-    origMatrix<-originalResponseMatrix(testObj)
-    engMatrixList<-engineeredResponseMatrix(testObj)
+    aug.test.features<-subset(engMatrix,Sample==x)
+    atf<-aug.test.features$Value
+    names(atf)<-aug.test.features$Gene
 
     #build original and updated model
-    orig.mod<-do.call(modelCall,list(formula='Response~.',data=origMatrix))
-    orig.pred<-predict(orig.mod,data=test.data)
+    orig.mod<-do.call(modelCall,list(formula='Response~.',data=origMatrixList[[p]]))
+    orig.pred<-predict(orig.mod,data=otf)
 
-    eng.preds<-lapply(engMatrixList,function(engMatrix){
-      eng.mod<-do.call(modelCall,list(formula='Response~.',data=engMatrix))
-      predict(eng.mod,data=aug.test.data)
+    eng.mod<-do.call(modelCall,list(formula='Response~.',data=engMatrixList[[p]]))
+    eng.pred<-predict(eng.mod,data=atf)
 
+
+      df<-data.frame(OriginalPred=orig.pred,EngineeredPred=eng.pred)
+      df$Pheno=rep(p,nrow(df))
+      df$LeftOutSample=rep(x,nrow(df))
+      df$Vals<-test.data
+      df
       })
+    all.res<-do.call('rbind',vals)
 
-    #predictions on test data
-    updatedPreds<-scoreDataFromModel(augmentedObj,aug.test.features,test.data)
-    df<-data.frame(select(baselinePreds,originalPred=Prediction,Actual),select(updatedPreds,augmentedPred=Prediction))
-    df$Drug<-rownames(df)
-    df$Sample<-rep(x,nrow(df))
-    df
-  })
-  vals
+
 
 }
 
-#' Helper function to remove feature data
-#' @description Un-exported for now
+#' Assess fendR and modeling using random weights
+#' @description Compare performance of fendR with random weights added to network/features
 #' @param fendRObj The object class
-#' @param sampleName
-#' @keywords leaveOneOut
-#' @return updated object
-removeSampleFromObject <- function(obj,sampleName){
-  if(sampleName%in%unique(obj$sampleOutcomeData$Sample))
-    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Sample!=sampleName)
-  else
-    print(paste('Sample',sampleName,'not found in outcome data'))
-  return(obj)
+#' @param testPheno a list of phenotypes to limit the test
+#' @keywords INCOMPLETE
+#' @export
+#' @return Not sure yet...
+compareModelToRandom <-function(fendRObj,testPheno){
+
 }
+
 
