@@ -5,7 +5,7 @@
 \title{Assess fendR and modeling using cross validation}
 \usage{
 crossValidationCompare(fendRObj, modelCall = "lm", testPheno = c(),
-  featuresIndependent = TRUE)
+  samplesIndependent = TRUE)
 }
 \arguments{
 \item{fendRObj}{The object class}

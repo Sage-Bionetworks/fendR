@@ -29,7 +29,7 @@ testDrugs=c('selumetinib',"sorafenib","vorinostat")
 
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
-fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
+fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
 
 origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
 engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
