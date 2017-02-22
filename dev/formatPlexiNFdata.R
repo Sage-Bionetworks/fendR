@@ -8,9 +8,15 @@ par.id<-'syn8282028'
 
 
 #drug sensitivity
-source("https://raw.githubusercontent.com/sgosline/pnfCellLines/master/bin/ncatsSingleAgentScreens.R")
+ncat.file="https://raw.githubusercontent.com/sgosline/pnfCellLines/master/bin/ncatsSingleAgentScreens.R"
+source(ncat.file)
+this.file=''
 
 targs<-ncatsDrugTargets()
+colnames(targs)<-c("Phenotype","Gene")
+write.table(targs,file='ncatsDrugTargetTidied.tsv',sep='\t',row.names=F,col.names=T)
+synStore(File("ncatsDrugTargetTidied.tsv",parentId=par.id),executed=list(list(url=ncat.file),list(url=this.file)))
+
 aucs<-getValueForAllCells('TAUC')
 lac50<-getValueForAllCells('LAC50')
 maxr<-getValueForAllCells("MAXR")
