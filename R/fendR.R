@@ -6,19 +6,20 @@
 
 #' An S3 class to represent a fendR predictive network algorithm
 #'
-#' @param network An iGraph network
+#' @param network A network or path to network, depending on the underlying class
 #' @param featureData a data.frame that contains rows representing genes and columns representing samples
 #' @param sampleOutcomeData a data.frame representing at least one column of phenotype and rows representing samples
 #' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
 #' @export
 #' @return a fendR object
-fendR<-function(network, featureData, phenoFeatureData, sampleOutcomeData){
-  me <- list(network=network,
+fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData){
+  me <- list(network=networkFile,
     featureData=featureData,
     phenoFeatureData=phenoFeatureData,
     sampleOutcomeData=sampleOutcomeData,
-    remappedFeatures=featureData, ##default to original data for testing
-    featureModel=NULL)
+    graph = NULL, #to be filled in using selectFeaturesFromNetwork function
+    remappedFeatures=NULL # to be filled in using engineerFeaturesFromNetwork function
+  )
   class(me) <- append(class(me),"fendR")
   return(me)
 }
@@ -26,149 +27,101 @@ fendR<-function(network, featureData, phenoFeatureData, sampleOutcomeData){
 ######################################################################
 
 ######################################################################
-# these are the generic methods to be implemented
+# these are the generic function to be implemented
+
+#' Load network from file or path
+#' @description Takes the network handle and loads relevant features from network into iGraph object
+#' @param object A fendR object
+#' @param testPheno A set of phenotypes to limit the analysis scope
+#' @keywords network
+#' @export
+#' @return A fendR object with a data frame with three columns: Gene, Phenotype, NetworkScore
+loadNetwork <- function(object){
+  UseMethod('loadNetwork',object)
+}
 
 
 #' Engineer Features from Network
-#' \code{createNewFeaturesFromNetwork} takes the gene-based measurements and alters their
-#' score using the list of networks
-#' @param object That contains a data frame and network
-#' @keywords
+#' @description Takes the igraph populated by \code{loadNetwork}
+#' and propagates scores to remapped features
+#' @param object fendR object after running \code{loadNetwork}
+#' @keywords network propagation
 #' @export
-#' @return data.frame representing new gene by sample matrix that is augmented
+#' @return fendR object with the remappedFeature data.frame populated with four columns: Gene, Sample, Phenotype, Value
 createNewFeaturesFromNetwork<-function(object,testDrugs){
   UseMethod('createNewFeaturesFromNetwork',object)
 }
 
-#createNewFeaturesFromNetwork.fendR <- function(object,testDrugs){
-#  print("This method cannot be called on generic fendR class")
-#  return(object)
-#}
 
-#' Builds predictive model from network-augmented feature
-#' \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying
-#' @param object That contains a phenotypic data
-#' @param newFeatureSet from \code{createNewFeaturesFromNetwork}
+#' Get model-ready matrix from original features
+#' @description return the original feature data in a response matrix for modeling
+#' @param object a fendrObject
 #' @keywords
 #' @export
-#' @return an object of class \code{lm}
-buildModelFromEngineeredFeatures <- function(object,testDrugs){
-  UseMethod('buildModelFromEngineeredFeatures',object)
+#' @return A response matrix to use for modeling with the formula 'Response~.'
+originalResponseMatrix <- function(object, phenotype=c(), ...){
+  UseMethod('originalResponseMatrix',object)
 }
 
-
-#' Builds predictive model from network-augmented feature
-#' \code{buildModelFromEngineeredFeatures} takes the engineered features and creates a model based on an underlying
-#' @param object That contains a phenotypic data
-#' @param testDrug name of drug to select from dataset to test in smaller context
+#' Get model-ready matrix from original features for fendR class
+#' @description return the original feature data in a response matrix for modeling
+#' @param object a fendrObject
 #' @keywords
+#' @import dplyr tidyr
 #' @export
-#' @return an object of class \code{fendR} with a list of \code{lm} objects
-buildModelFromEngineeredFeatures.fendR <- function(object,testDrugs=NA){
-  print('Building linear model from remapped features')
+#' @return A response matrix to use for modeling with the formula 'Response~.'
+originalResponseMatrix.fendR <- function(object,phenotype=c()){
+  if(length(phenotype)==0)
+    phenotype <- unique(object$sampleOutcomeData$Phenotype)
 
+  fres<-lapply(phenotype,function(p){
+  #if(length(phenotype)>0)
+    out.dat<-subset(object$sampleOutcomeData,Phenotype==p)
+  #else
+ #   out.dat<-object$sampleOutcomeData
+  mod.df<-dplyr::inner_join(object$featureData,out.dat,by="Sample")%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
 
-   over<-intersect(object$sampleOutcomeData$Phenotype,object$remappedFeatures$Phenotype)
-  if(!is.na(testDrugs))
-    over<-testDrugs
+  res<-tidyr::spread(mod.df,Gene,value=Value)
+  rownames(res)<-res$Sample
+  res<-res[,-which(colnames(res)%in%c('Phenotype','Sample'))]
 
-  all.mods<-lapply(over,function(x){
-      print(paste('Creating model for',x))
-      mod.df<-inner_join(subset(object$sampleOutcomeData,Phenotype==x)%>%select(Sample,Response),subset(object$remappedFeatures,Phenotype==x),by="Sample")%>%select(Sample,Gene,Value,Response)
+  zvar<-which(apply(res,2,var)==0)
+  print(paste('Removing',length(zvar),'un-changing features from matrix'))
+  res<-res[,-zvar]
 
-
-        res<-spread(mod.df,Gene,value=Value)
-        res<-res[,-which(colnames(res)=='Sample')]
-        mod<-lm(Response~.,data=res)
-      mod
+  res
   })
-  names(all.mods)<-over
-  object$featureModel <- all.mods
-  return(object)
+  names(fres)<-phenotype
+  return(fres)
 
 }
 
-#' Builds predictive model from original features
-#' \code{buildModelFromOriginalFeatures} takes the original features and creates a model based on an underlying
-#' @param object That contains a phenotypic data
-#' @param testDrug name of drug to select from dataset to test in smaller context
-#' @keywords
+#' Get re-engineered feature matrix
+#' @description Grabs data from the re-engineered features and creates a model-ready response matrix
+#' @keywords model fendR
 #' @export
-#' @return an fendR object with a list of \code{lm} objects
-buildModelFromOriginalFeatures.fendR <- function(object,testDrugs=NA){
-  print('Building linear model from original features')
-
-
-  over<-unique(object$sampleOutcomeData$Phenotype)
-  if(!is.na(testDrugs))
-    over<-testDrugs
-
-  #let's do a basic reduction here to test for genes who are not differentially mutated across samples
-  gene.var<-object$featureData%>%group_by(Gene)%>%summarize(Variance=var(Value))
-
-  #nonzero genes
-  nz.genes<-gene.var$Gene[which(gene.var$Variance!=0)]
-  print(paste('Reducing gene dataset to',length(nz.genes),'features that vary across all samples'))
-
-  red.df<-subset(object$featureData,Gene%in%nz.genes)
-  all.mods<-lapply(over,function(x){
-    print(paste('Creating model for',x))
-
-    mod.df<-inner_join(subset(object$sampleOutcomeData,Phenotype==x),red.df,by="Sample")%>%select(Sample,Gene,Value,Response)
-    res<-spread(mod.df,Gene,value=Value)
-    res<-res[,-which(colnames(res)=='Sample')]
-    mod<-lm(Response~.,data=res)
-    mod
-  })
-  names(all.mods)<-over
-  object$featureModel <- all.mods
-  return(object)
+#' @return A response matrix to use for modeling with the formula Response~.
+engineeredResponseMatrix <- function(object,phenotype=c()){
+  UseMethod('engineeredResponseMatrix',object)
 }
 
 
-#' Builds predictive model from original features
-#' \code{buildModelFromOriginalFeatures} takes the original features and creates a model based on an underlying
-#' @param object That contains a phenotypic data
-#' @keywords
-#' @export
-#' @return an fendR object with a list of \code{lm} objects
-buildModelFromOriginalFeatures <- function(object,testDrugs){
-  UseMethod('buildModelFromOriginalFeatures',object)
+#' Helper function to remove feature data or sample data from any fendR object
+#' @description Un-exported for now
+#' @param fendRObj The object class
+#' @param sampleName
+#' @keywords leaveOneOut
+#' @return updated object
+removeSampleOrPhenoFromObject <- function(obj,sampleName='',phenoName=''){
+  if(sampleName!=''&&sampleName%in%unique(obj$sampleOutcomeData$Sample)){
+    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Sample!=sampleName)
+#    obj$featureData <- subset(obj$featureData,Sample!=sampleName)
+  }
 
-}
-
-#' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
-#' @param model
-#' @param unseenFeatures
-#' @param unseenResponse
-#' @keywords
-#' @export
-#' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel <- function(object, unseenFeatures,unseenResponse){
-  UseMethod('scoreDataFromModel',object)
-}
-
-#' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
-#' @param model
-#' @param unseenFeatures
-#' @param unseenResponse
-#' @keywords
-#' @export
-#' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel.fendR <- function(object, unseenFeatures,unseenResponse){
-  #new.df<-left_join(unseenFeatures,object$featureData,by='Sample')
-  model.preds<-sapply(names(object$featureModel),function(p){
-    #subset for phenotype if we have different ones for each drug
-    if('Phenotype'%in%names(unseenFeatures))
-      ddf<-subset(unseenFeatures,Phenotype==p)[,-which(colnames(unseenFeatures)=='Phenotype')]
-    else
-      ddf<-unseenFeatures
-
-    newvec<-select(ddf,Gene,Value)%>%spread(Gene,value=Value)
-    predict(object$featureModel[[p]],newdata=newvec)[[1]]
-  })
-
-  model.preds<-data.frame(Prediction=model.preds,Actual=unseenResponse$Response[match(names(object$featureModel),unseenResponse$Phenotype)])
-
-  return(model.preds)
+  if(phenoName!='' && phenoName%in%unique(obj$sampleOutcomeData$Phenotype)){
+    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Phenotype!=phenoName)
+  #  obj$phenoFeatureData<-subset(obj$phenoFeatureData,Phenotype!=phenoName)
+  }
+  #  print(paste('Sample',sampleName,'not found in outcome data'))
+  return(obj)
 }

@@ -12,8 +12,8 @@
 #' @inheritParams fendR
 #' @export
 #' @return basicFendR object
-basicFendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData){
- me <-fendR(network, featureData, phenoFeatureData,sampleOutcomeData)
+basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData){
+ me <-fendR(networkFile, featureData, phenoFeatureData,sampleOutcomeData)
  class(me) <- append(class(me),'basicFendR')
  return(me)
 }
@@ -21,6 +21,25 @@ basicFendR<-function(network, featureData, phenoFeatureData,sampleOutcomeData){
 ######################################################################
 # Set methods implemented by basicFendR
 
+
+#' Load Network data
+#'
+#' \code{loadNetwork} takes a file path and formats it as network
+#' @param Path to network file
+#' @keywords network feather
+#' @export
+#' @import igraph
+#' @return a fendR object with the graph parameter populated with an iGraph object where edge weights represent distance between nodes (smaller means *more* association)
+#' @examples
+loadNetwork.basicFendR <- function(fObj){
+  #library(igraph)
+  tab<-read.table(fObj$network,stringsAsFactors =FALSE)
+  net<-igraph::graph_from_data_frame(tab,directed=F)
+  E(net)$weight<-1-min(tab[,3],1)
+  net<-delete_vertices(net,'UBC')
+  fObj$graph <- net
+  return (fObj)
+}
 
 
 #' Engineer Features from Network
@@ -43,16 +62,14 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
       phenos=phenos[phenos %in% testDrugs]
     }
 
-
-    #TODO: investigate how these can be done with dplyr/mutate?
-
     ##for each phenotype, update the gene value by the shortest path to the gene target
     pheno.updates<-lapply(phenos,function(p){
       dt<-as.character(subset(object$phenoFeatureData,Phenotype==p)$Gene)
       print(paste('Calculating shortest path to',p,'target(s):',paste(dt,collapse=',')))
        #calculate shortest path between all drug targets and genes in feature set (that are in network)
-        gd<-distances(object$network,intersect(dt,names(V(object$network))),
-            intersect(object$featureData$Gene,names(V(object$network))))
+        gd<-distances(object$graph,intersect(dt,names(V(object$graph))),
+            intersect(object$featureData$Gene,names(V(object$graph))))
+
         #get minimum across all drug targets
         min.to.targ<-apply(gd,2,min)
         #remove Inf values
@@ -71,6 +88,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
       #create new data frame with features
       ddf<-data.frame(Gene=as.character(c(nzFeatures,zFeat)),
         FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))), stringsAsFactors=FALSE)
+
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
       new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
       return(new.fd)
@@ -88,7 +106,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     #if we have multiple drugs: remove any genes that don't change across drugs.
     #eventually do something more complicated
     if(is.na(testDrugs)||length(testDrugs>1)){
-      gene.var<-newdf%>%group_by(Gene)%>%summarize(Variance=var(NetworkValue))
+      gene.var<-newdf%>%dplyr::group_by(Gene)%>%dplyr::summarize(Variance=var(NetworkValue))
       nzvars<-which(gene.var$Variance>0)
       genes<-gene.var$Gene[nzvars]
       print(paste('Keeping',length(nzvars),'gene values that change across drug treatments out of',length(gene.var$Gene)))
@@ -106,15 +124,33 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
 }
 
-
-#' \code{scoreDataFromModel} takes the new model and predicts a phenotype from an input set
-#' @param model
-#' @param unseenData
-#' @keywords
+#' Get Engineered Features as model matrix
+#' @description Gets a \code{list} of response matrices for a phenotype
 #' @export
-#' @return list of scores for each of the columns of the unseen feature data frame
-scoreDataFromModel.basicFendR<-function(object,unseenData){
+#' @import dplyr
+engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
+  if(length(phenotype)==0)
+    phenotype <- unique(fObj$remappedFeatures$Phenotype)
+
+
+  out.dat<-subset(fObj$sampleOutcomeData,Phenotype%in%phenotype)
+  in.dat<-subset(fObj$remappedFeatures,Phenotype%in%phenotype)
+
+  mod.df<-dplyr::inner_join(out.dat,dplyr::select(in.dat,Sample,Gene,Value),by="Sample")%>%dplyr::select(Sample,Gene,Value,Phenotype,Response)
+
+#  mod.df<-filter(mod.df,!Sample%in%sampsToOmit)
+  mod.df<-mutate(mod.df,SamplePheno=paste(Sample,Phenotype,sep='_'))
+  dupes<-which(duplicated(select(mod.df,Gene,SamplePheno)))
+  res<-tidyr::spread(select(mod.df[-dupes,],Gene,Value,SamplePheno,Response,Phenotype,Sample),Gene,Value)
+
+  rownames(res)<-res$SamplePheno
+  res<-res[,-which(colnames(res)%in%c('Gene','SamplePheno'))]
+
+  zvar<-which(apply(res,2,var)==0)
+  print(paste('Removing',length(zvar),'un-changing features from matrix'))
+  res<-res[,-zvar]
+  res
+
+
 
 }
-
-
