@@ -143,12 +143,15 @@ engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
   dupes<-which(duplicated(select(mod.df,Gene,SamplePheno)))
   res<-tidyr::spread(select(mod.df[-dupes,],Gene,Value,SamplePheno,Response,Phenotype,Sample),Gene,Value)
 
-  rownames(res)<-res$SamplePheno
+ # rownames(res)<-res$SamplePheno
   res<-res[,-which(colnames(res)%in%c('Gene','SamplePheno'))]
 
   zvar<-which(apply(res,2,var)==0)
+
+  if(lengh(zvar)>0){
   print(paste('Removing',length(zvar),'un-changing features from matrix'))
   res<-res[,-zvar]
+  }
   res
 
 
