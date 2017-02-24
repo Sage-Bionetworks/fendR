@@ -3,15 +3,26 @@ varCompWrapperFunction <- function(outcome,features){
   ####features have to be in observations as rows and features as column format
   kernel <- cov(t(features),
                 use = 'pairwise.complete.obs')
-  foo <- varComp::varComp(outcome~1,
-                          varcov=kernel)
+  alternativeModel <- varComp::varComp(outcome~1,
+                                       varcov=kernel)
+  nullModel <- varComp::varComp(outcome~1)
 
   model <- list()
   model$totalVariance <- as.numeric(var(outcome))
-  model$varianceExplained <- as.numeric(foo$varComps[1])
+  model$varianceExplained <- as.numeric(alternativeModel$varComps[1])
   model$percentVarianceExplained <- model$varianceExplained/model$totalVariance
-  model$errorVarianceExplained <- as.numeric(foo$sigma2)
-  model$zscore <- model$varianceExplained/model$errorVarianceExplained
-  model$pvalue <- pnorm(model$zscore,lower.tail=F)
+  model$errorVarianceExplained <- as.numeric(alternativeModel$sigma2)
+  model$LRT <- 2*(logLik(alternativeModel)[1]-logLik(nullModel)[1])
+
+  pVarianceLRT <- function(x){
+    x <- round(x,8)
+    if(x==0){
+      return(0.5)
+    }else{
+      return(0.5*pchisq(x,1,lower.tail=F))
+    }
+  }
+
+  model$pvalue <-pVarianceLRT(model$LRT)
   return(model)
 }
