@@ -82,8 +82,8 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
   mod.df<-dplyr::inner_join(object$featureData,out.dat,by="Sample")%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
 
   res<-tidyr::spread(mod.df,Gene,value=Value)
-  rownames(res)<-res$Sample
-  res<-res[,-which(colnames(res)%in%c('Phenotype','Sample'))]
+#  rownames(res)<-res$Sample
+ # res<-res[,-which(colnames(res)%in%c('Phenotype','Sample'))]
 
   zvar<-which(apply(res,2,var)==0)
   print(paste('Removing',length(zvar),'un-changing features from matrix'))
@@ -91,8 +91,8 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
 
   res
   })
-  names(fres)<-phenotype
-  return(fres)
+  dres<-do.call('rbind',fres)
+  return(dres)
 
 }
 
