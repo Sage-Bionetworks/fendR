@@ -15,6 +15,7 @@
 #' @return Not sure yet...
 crossValidationCompare <- function(fendRObj,
   modelCall='lm',
+  modelArgs=list(),
   testPheno=c(),
   samplesIndependent=TRUE){
 
@@ -57,30 +58,25 @@ crossValidationCompare <- function(fendRObj,
     #build original and updated model
     orig.pred<-sapply(testPheno,function(p){
       mod.dat<-filter(origMatrix,Sample!=x)%>%filter(Phenotype==p)%>%select(-Phenotype,-Sample)
- #   zvars<-which(apply(mod.dat,2,var)==0)
-#    if(length(zvars)>0)
-#      mod.dat<-mod.dat[,-zvars]
-      orig.mod<-do.call(modelCall,list(formula='Response~.',data=mod.dat))
+      orig.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
       predict(orig.mod,newdata=data.frame(t(otf)))[[1]]
     })
 
     mod.dat<-filter(engMatrix,Sample!=x)%>%select(-Phenotype,-Sample)
- #   zvars<-which(apply(mod.dat,2,var)==0)
-#    if(length(zvars)>0)
-#      mod.dat<-mod.dat[,-zvars]
-    eng.mod<-do.call(modelCall,list(formula='Response~.',data=mod.dat))
+    eng.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
     eng.pred<-predict(eng.mod,data.frame(atf))
 
 
       df<-data.frame(OriginalPred=orig.pred,
-          EngineeredPred=eng.pred,
+          EngineeredPred=eng.pred,Phenotype=testPheno,
           Sample=rep(x,length(testPheno)),TrueValue=test.data)
 
       df
       })
 
     all.res<-do.call('rbind',vals)
-  vals
+
+    return(all.res)
 
 }
 
