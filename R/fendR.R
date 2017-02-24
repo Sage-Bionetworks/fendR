@@ -59,7 +59,7 @@ createNewFeaturesFromNetwork<-function(object,testDrugs){
 #' @keywords
 #' @export
 #' @return A response matrix to use for modeling with the formula 'Response~.'
-originalResponseMatrix <- function(object,phenotype=c()){
+originalResponseMatrix <- function(object, phenotype=c(), ...){
   UseMethod('originalResponseMatrix',object)
 }
 

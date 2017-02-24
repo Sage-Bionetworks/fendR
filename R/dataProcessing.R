@@ -124,7 +124,7 @@ translateMatrixIdentifiers <- function(matrix, translationTable, agg.fun = "mean
   cols <- colnames(matrix)
 
   ## Drop cols and rows that do not have a translation
-  cols.with.translation.flag <- (cols %in% mgi2HsMap$from)
+  cols.with.translation.flag <- (cols %in% translationTable$from)
   cols.with.translation <- cols[cols.with.translation.flag]
   cols.without.translation <- cols[!cols.with.translation.flag]
   cat(paste0(length(cols.with.translation), " columns (of ", length(cols), ") have at least one translation\n"))

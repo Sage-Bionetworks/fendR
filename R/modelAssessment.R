@@ -82,7 +82,6 @@ crossValidationCompare <- function(fendRObj,
     all.res<-do.call('rbind',vals)
   vals
 
-
 }
 
 #' Assess fendR and modeling using random weights
