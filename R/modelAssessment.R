@@ -7,17 +7,19 @@
 #' @description Use leave-one-out cross validation to assess the feature mapping and
 #' modeling approach
 #' @param fendRObj The object class
-#' @param modelCall A String(?) to call the model and predict
+#' @param modelCall A String to call the model and predict
+#' @param modelArgs a list of extra arguments to pass into do.call with model
 #' @param testPheno a list of phenotypes to limit the test
-#' @param featuresIndependent set to TRUE if your engineered features are independent of samples
+#' @param sampleIndependent set to TRUE if your engineered features are independent of samples
 #' @keywords INCOMPLETE
 #' @export
+#' @import plyr dplyr doMC
 #' @return Not sure yet...
 crossValidationCompare <- function(fendRObj,
   modelCall='lm',
   modelArgs=list(),
   testPheno=c(),
-  samplesIndependent=TRUE){
+  sampleIndependent=TRUE){
 
   ##get a list of all samples
   all.samps<-intersect(fendRObj$sampleOutcomeData$Sample,fendRObj$featureData$Sample)
@@ -28,7 +30,7 @@ crossValidationCompare <- function(fendRObj,
   if(is.null(fendRObj$graph))
     fendRObj <- loadNetwork(fendRObj) ###only need to load graph once
 
-  if(samplesIndependent)##if the samples are independent we can generate this once
+  if(sampleIndependent)##if the samples are independent we can generate this once
     fendRObj<-createNewFeaturesFromNetwork(fendRObj,testPheno)
 
   ##FIX
@@ -37,12 +39,12 @@ crossValidationCompare <- function(fendRObj,
   engMatrix<-engineeredResponseMatrix(fendRObj)
 
 
+  doMC::registerDoMC(2)
   #for each sample, leave one out
-  vals<-lapply(all.samps,function(x){
-
+  vals<-plyr::laply(all.samps,function(x){
 
     #subset out that data and re-assign original object
-    test.df<-filter(fendRObj$sampleOutcomeData,Sample==x)%>%filter(Phenotype%in%testPheno)
+    test.df<-dplyr::filter(fendRObj$sampleOutcomeData,Sample==x)%>%filter(Phenotype%in%testPheno)
     test.data<-test.df$Response
     names(test.data)<-test.df$Phenotype
     orig.test.features<-subset(fendRObj$featureData,Sample==x)
@@ -50,19 +52,18 @@ crossValidationCompare <- function(fendRObj,
     otf<-orig.test.features$Value
     names(otf)<-orig.test.features$Gene
 
-
     aug.test.features<-subset(fendRObj$remappedFeatures,Sample==x)
     atf<-reshape2::acast(select(aug.test.features,Phenotype,Gene,Value),Phenotype~Gene)
 
 
     #build original and updated model
     orig.pred<-sapply(testPheno,function(p){
-      mod.dat<-filter(origMatrix,Sample!=x)%>%filter(Phenotype==p)%>%select(-Phenotype,-Sample)
+      mod.dat<-dplyr::filter(origMatrix,Sample!=x)%>%filter(Phenotype==p)%>%dplyr::select(-Phenotype,-Sample)
       orig.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
       predict(orig.mod,newdata=data.frame(t(otf)))[[1]]
     })
 
-    mod.dat<-filter(engMatrix,Sample!=x)%>%select(-Phenotype,-Sample)
+    mod.dat<-dplyr::filter(engMatrix,Sample!=x)%>%dplyr::select(-Phenotype,-Sample)
     eng.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
     eng.pred<-predict(eng.mod,data.frame(atf))
 
@@ -72,11 +73,17 @@ crossValidationCompare <- function(fendRObj,
           Sample=rep(x,length(testPheno)),TrueValue=test.data)
 
       df
-      })
+      },.parallel = TRUE)
 
     all.res<-do.call('rbind',vals)
 
     return(all.res)
+
+}
+
+
+plotModelResults <- function(modelingDataFrame){
+  ##data frame has a
 
 }
 
