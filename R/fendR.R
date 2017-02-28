@@ -74,24 +74,9 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
   if(length(phenotype)==0)
     phenotype <- unique(object$sampleOutcomeData$Phenotype)
 
-  fres<-lapply(phenotype,function(p){
-  #if(length(phenotype)>0)
-    out.dat<-subset(object$sampleOutcomeData,Phenotype==p)
-  #else
- #   out.dat<-object$sampleOutcomeData
-  mod.df<-dplyr::inner_join(object$featureData,out.dat,by="Sample")%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
+  fres<-inner_join(object$featureData,subset(object$sampleOutcomeData,Phenotype%in%phenotype),by='Sample')%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
+  dres<-tidyr::spread(fres,Gene,value=Value,drop=TRUE)
 
-  res<-tidyr::spread(mod.df,Gene,value=Value)
-#  rownames(res)<-res$Sample
- # res<-res[,-which(colnames(res)%in%c('Phenotype','Sample'))]
-
-  zvar<-which(apply(res,2,var)==0)
-  print(paste('Removing',length(zvar),'un-changing features from matrix'))
-  res<-res[,-zvar]
-
-  res
-  })
-  dres<-do.call('rbind',fres)
   return(dres)
 
 }

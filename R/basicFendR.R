@@ -148,7 +148,7 @@ engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
 
   zvar<-which(apply(res,2,var)==0)
 
-  if(lengh(zvar)>0){
+  if(length(zvar)>0){
   print(paste('Removing',length(zvar),'un-changing features from matrix'))
   res<-res[,-zvar]
   }
