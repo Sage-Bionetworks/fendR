@@ -33,15 +33,15 @@ crossValidationCompare <- function(fendRObj,
   if(sampleIndependent)##if the samples are independent we can generate this once
     fendRObj<-createNewFeaturesFromNetwork(fendRObj,testPheno)
 
-  ##FIX
+
   ##for now we assume that all models are assume independence between samples AND Drugs
   origMatrix<-originalResponseMatrix(fendRObj)
   engMatrix<-engineeredResponseMatrix(fendRObj)
 
 
-  doMC::registerDoMC(2)
+  doMC::registerDoMC(1)
   #for each sample, leave one out
-  vals<-plyr::laply(all.samps,function(x){
+  vals<-plyr::llply(all.samps,function(x){
 
     #subset out that data and re-assign original object
     test.df<-dplyr::filter(fendRObj$sampleOutcomeData,Sample==x)%>%filter(Phenotype%in%testPheno)
@@ -73,7 +73,7 @@ crossValidationCompare <- function(fendRObj,
           Sample=rep(x,length(testPheno)),TrueValue=test.data)
 
       df
-      },.parallel = TRUE)
+      },.parallel = FALSE)
 
     all.res<-do.call('rbind',vals)
 
@@ -83,7 +83,8 @@ crossValidationCompare <- function(fendRObj,
 
 
 plotModelResults <- function(modelingDataFrame){
-  ##data frame has a
+  ##data frame is result from LOO
+
 
 }
 
