@@ -4,17 +4,19 @@
 \alias{crossValidationCompare}
 \title{Assess fendR and modeling using cross validation}
 \usage{
-crossValidationCompare(fendRObj, modelCall = "lm", testPheno = c(),
-  featuresIndependent = TRUE)
+crossValidationCompare(fendRObj, modelCall = "lm", modelArgs = list(),
+  testPheno = c(), sampleIndependent = TRUE)
 }
 \arguments{
 \item{fendRObj}{The object class}
 
-\item{modelCall}{A String(?) to call the model and predict}
+\item{modelCall}{A String to call the model and predict}
+
+\item{modelArgs}{a list of extra arguments to pass into do.call with model}
 
 \item{testPheno}{a list of phenotypes to limit the test}
 
-\item{featuresIndependent}{set to TRUE if your engineered features are independent of samples}
+\item{sampleIndependent}{set to TRUE if your engineered features are independent of samples}
 }
 \value{
 Not sure yet...

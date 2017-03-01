@@ -4,7 +4,7 @@
 \alias{originalResponseMatrix}
 \title{Get model-ready matrix from original features}
 \usage{
-originalResponseMatrix(object, phenotype = c())
+originalResponseMatrix(object, phenotype = c(), ...)
 }
 \arguments{
 \item{object}{a fendrObject}

@@ -75,19 +75,13 @@ originalSparseResponseMatrix <- function(object, phenotype=c(), ...){
 #' @export
 #' @return A response matrix to use for modeling with the formula 'Response~.'
 originalResponseMatrix.fendR <- function(object,phenotype=c()){
-  if(length(phenotype)>0)
-    out.dat<-subset(object$sampleOutcomeData,Phenotype%in%phenotype)
-  else
-    out.dat<-object$sampleOutcomeData
-  mod.df<-dplyr::inner_join(object$featureData,out.dat,by="Sample")%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
-  res<-tidyr::spread(mod.df,Gene,value=Value)
-  res<-res[,-which(colnames(res)%in%c('Phenotype','Sample'))]
+  if(length(phenotype)==0)
+    phenotype <- unique(object$sampleOutcomeData$Phenotype)
 
-  zvar<-which(apply(res,2,var)==0)
-  print(paste('Removing',length(zvar),'un-changing features from matrix'))
-  res<-res[,-zvar]
+  fres<-inner_join(object$featureData,subset(object$sampleOutcomeData,Phenotype%in%phenotype),by='Sample')%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
+  dres<-tidyr::spread(fres,Gene,value=Value,drop=TRUE)
 
-  return(res)
+  return(dres)
 
 }
 
@@ -105,3 +99,22 @@ engineeredSparseResponseMatrix <- function(object, phenotype=c(), ...){
 }
 
 
+#' Helper function to remove feature data or sample data from any fendR object
+#' @description Un-exported for now
+#' @param fendRObj The object class
+#' @param sampleName
+#' @keywords leaveOneOut
+#' @return updated object
+removeSampleOrPhenoFromObject <- function(obj,sampleName='',phenoName=''){
+  if(sampleName!=''&&sampleName%in%unique(obj$sampleOutcomeData$Sample)){
+    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Sample!=sampleName)
+#    obj$featureData <- subset(obj$featureData,Sample!=sampleName)
+  }
+
+  if(phenoName!='' && phenoName%in%unique(obj$sampleOutcomeData$Phenotype)){
+    obj$sampleOutcomeData<-subset(obj$sampleOutcomeData,Phenotype!=phenoName)
+  #  obj$phenoFeatureData<-subset(obj$phenoFeatureData,Phenotype!=phenoName)
+  }
+  #  print(paste('Sample',sampleName,'not found in outcome data'))
+  return(obj)
+}

@@ -6,10 +6,10 @@
 network algorithm.}
 \usage{
 n3FendR(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes,
-  network.type)
+  testDrugs = NA)
 }
 \arguments{
-\item{network}{the file name of a feather or big.matrix object representing a dense matrix}
+\item{network}{the file name of a feather object representing a dense matrix}
 
 \item{featureData}{a data.frame that contains rows representing genes and columns representing samples}
 
@@ -19,7 +19,7 @@ n3FendR(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes,
 
 \item{target.genes}{a vector of target gene names (a subset of those in featureData) that will be used to sparsify the network}
 
-\item{network.type}{the on-disk representation of the network (either "feather" or "big.memory")}
+\item{testDrugs}{a vector of drug names to be used to subset the data (e.g., for debugging/efficiency purposes)}
 }
 \value{
 n3FendR object

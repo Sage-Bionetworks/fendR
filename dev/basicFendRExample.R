@@ -25,11 +25,12 @@ fObj <- basicFendR(networkFile=network.file,
   phenoFeatureData = target.data
  )
 
-testDrugs=c('selumetinib',"sorafenib","vorinostat")
+#sampling 10 drugs
+testDrugs=sample(fObj$phenoFeatureData$Phenotype,3)
 
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
-fObj<-createNewFeaturesFromNetwork(fObj,testDrugs)
+fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
 
 origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
 engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
