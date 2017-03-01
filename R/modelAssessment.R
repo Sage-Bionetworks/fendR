@@ -20,7 +20,7 @@ crossValidationCompare <- function(fendRObj,
   modelCall='lm',
   modelArgs=list(),
   testPheno=c(),
-  numCores=1
+  numCores=1,
   sampleIndependent=TRUE){
 
   ##get a list of all samples
