@@ -5,7 +5,7 @@
 \title{Assess fendR and modeling using cross validation}
 \usage{
 crossValidationCompare(fendRObj, modelCall = "lm", modelArgs = list(),
-  testPheno = c(), sampleIndependent = TRUE)
+  testPheno = c(), numCores = 1, sampleIndependent = TRUE)
 }
 \arguments{
 \item{fendRObj}{The object class}
@@ -16,10 +16,12 @@ crossValidationCompare(fendRObj, modelCall = "lm", modelArgs = list(),
 
 \item{testPheno}{a list of phenotypes to limit the test}
 
+\item{numCores}{number of cores to use, defaults to 1}
+
 \item{sampleIndependent}{set to TRUE if your engineered features are independent of samples}
 }
 \value{
-Not sure yet...
+Data frame with 5 columsn: Phenotype, Sample, TrueValue,OriginalPred,EngineeredPred
 }
 \description{
 Use leave-one-out cross validation to assess the feature mapping and

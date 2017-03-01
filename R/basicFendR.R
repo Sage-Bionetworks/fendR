@@ -47,10 +47,12 @@ loadNetwork.basicFendR <- function(fObj){
 #' @param object That contains a data frame and network
 #' @keywords
 #' @export
-#' @import dplyr
+#' @import dplyr plyr doMC
 #' @return list of gene features for each phenotype/drug response
-createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
+createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA,numCores=1){
     library(dplyr)
+    doMC::registerDoMC(numCores)
+
     ##figure out which phenotypes have both feature data and outcome data
     phenos<-intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
     all.phenos<-union(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
@@ -63,7 +65,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     }
 
     ##for each phenotype, update the gene value by the shortest path to the gene target
-    pheno.updates<-lapply(phenos,function(p){
+    pheno.updates<-plyr::llply(phenos,function(p){
       dt<-as.character(subset(object$phenoFeatureData,Phenotype==p)$Gene)
       print(paste('Calculating shortest path to',p,'target(s):',paste(dt,collapse=',')))
        #calculate shortest path between all drug targets and genes in feature set (that are in network)
@@ -75,11 +77,11 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
         #remove Inf values
         min.to.targ<-min.to.targ[which(is.finite(min.to.targ))]
         min.to.targ
-    })
+    },.parallel = (numCores>1))
 
     ##update from featureData the score by shortest weighted path to target genes
     ##this is ridiculously time-consuming
-    pheno.features<-lapply(pheno.updates,function(x){
+    pheno.features<-plyr::llply(pheno.updates,function(x){
       ##find out features with graph data
       nzFeatures<-intersect(names(x),object$featureData$Gene)
 
@@ -92,7 +94,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
       new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
       return(new.fd)
-    })
+    },.parallel = (numCores>1))
     #move to data frame
     newdf<-do.call('rbind',pheno.features)
     #now add back phenotype information
