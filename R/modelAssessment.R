@@ -20,7 +20,7 @@ crossValidationCompare <- function(fendRObj,
   modelCall='lm',
   modelArgs=list(),
   testPheno=c(),
-  numCores=1,
+
   sampleIndependent=TRUE){
 
   ##get a list of all samples
@@ -41,7 +41,7 @@ crossValidationCompare <- function(fendRObj,
   engMatrix<-engineeredResponseMatrix(fendRObj)
 
 
-  doMC::registerDoMC(numCores)
+  doMC::registerDoMC()
   #for each sample, leave one out
   vals<-plyr::llply(all.samps,function(x){
 
@@ -75,7 +75,7 @@ crossValidationCompare <- function(fendRObj,
           Sample=rep(x,length(testPheno)),TrueValue=test.data)
 
       df
-      },.parallel = (numCores>1))
+      },.parallel = TRUE)
 
     all.res<-do.call('rbind',vals)
 

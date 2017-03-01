@@ -49,9 +49,9 @@ loadNetwork.basicFendR <- function(fObj){
 #' @export
 #' @import dplyr plyr doMC
 #' @return list of gene features for each phenotype/drug response
-createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA,numCores=1){
+createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     library(dplyr)
-    doMC::registerDoMC(numCores)
+    doMC::registerDoMC()
 
     ##figure out which phenotypes have both feature data and outcome data
     phenos<-intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
@@ -77,7 +77,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA,numCores=1
         #remove Inf values
         min.to.targ<-min.to.targ[which(is.finite(min.to.targ))]
         min.to.targ
-    },.parallel = (numCores>1))
+    },.parallel = TRUE)
 
     ##update from featureData the score by shortest weighted path to target genes
     ##this is ridiculously time-consuming
@@ -94,7 +94,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA,numCores=1
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
       new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
       return(new.fd)
-    },.parallel = (numCores>1))
+    },.parallel =TRUE)
     #move to data frame
     newdf<-do.call('rbind',pheno.features)
     #now add back phenotype information

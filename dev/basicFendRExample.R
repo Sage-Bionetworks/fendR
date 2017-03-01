@@ -28,12 +28,13 @@ fObj <- basicFendR(networkFile=network.file,
 #sampling 10 drugs
 testDrugs=unique(fObj$phenoFeatureData$Phenotype)
 
+
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
 fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
 
-origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
-engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
+#origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
+#engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
 
 
 ##we can add some generic fendR methods as well, such as plotting, statistics, loo, etc.
@@ -41,7 +42,6 @@ res<-crossValidationCompare(fObj,
   modelCall='lm',
   modelArgs=list(),
   testPheno=testDrugs,
-  numCores=5,
   sampleIndependent=TRUE)
 plotModelResults(res)
 write.table('fendRtestResults.tsv',sep='\t',header=T,row.names=F)
