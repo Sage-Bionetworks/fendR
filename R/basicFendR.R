@@ -96,7 +96,8 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
         FracDistance=c(1/x[nzFeatures],rep(0,length(zFeat))), stringsAsFactors=FALSE)
 
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
-      new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
+      new.fd<-inner_join(object$featureData,ddf,by="Gene")
+      new.fd$NetworkValue<-apply(select(new.fd,Value,FracDistance),1,sum)
       new.fd$Phenotype<-rep(y,nrow(new.fd))
       return(new.fd)
 
