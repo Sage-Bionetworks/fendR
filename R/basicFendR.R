@@ -65,7 +65,7 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     }
 
     ##for each phenotype, update the gene value by the shortest path to the gene target
-    pheno.updates<-plyr::llply(phenos,function(p){
+    pheno.updates<-plyr::ldply(phenos,function(p){
       dt<-as.character(subset(object$phenoFeatureData,Phenotype==p)$Gene)
       print(paste('Calculating shortest path to',p,'target(s):',paste(dt,collapse=',')))
        #calculate shortest path between all drug targets and genes in feature set (that are in network)
@@ -78,10 +78,14 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
         min.to.targ<-min.to.targ[which(is.finite(min.to.targ))]
         min.to.targ
     },.parallel = TRUE)
-
+    pheno.updates<-t(pheno.updates)
+    colnames(pheno.updates)<-phenos
+    #pheno.updates<-data.frame(pheno.updates)
+    #rownames(pheno.updates)<0
     ##update from featureData the score by shortest weighted path to target genes
     ##this is ridiculously time-consuming
-    pheno.features<-plyr::llply(pheno.updates,function(x){
+    pheno.features<-plyr::ldply(phenos,function(y){
+      x<-pheno.updates[,y]
       ##find out features with graph data
       nzFeatures<-intersect(names(x),object$featureData$Gene)
 
@@ -93,16 +97,11 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 
       ddf$FracDistance[!is.finite(ddf$FracDistance)]<-0
       new.fd<-left_join(object$featureData,ddf,by="Gene")%>%mutate(NetworkValue=Value+FracDistance)
+      new.fd$Phenotype<-rep(y,nrow(new.fd))
       return(new.fd)
-    },.parallel =TRUE)
-    #move to data frame
-    newdf<-do.call('rbind',pheno.features)
-    #now add back phenotype information
-    phen<-c()
-    for(i in 1:length(phenos))
-      phen<-c(phen,rep(phenos[i],nrow(pheno.features[[i]])))
-    newdf$Phenotype<-phen
 
+    },.parallel =TRUE)
+    newdf<-pheno.features
 
     ##Reduction strategy:
     #if we have multiple drugs: remove any genes that don't change across drugs.

@@ -28,6 +28,7 @@ fObj <- basicFendR(networkFile=network.file,
 #sampling 10 drugs
 testDrugs=unique(fObj$phenoFeatureData$Phenotype)
 
+testDrugs<-sample(testDrugs,3)
 
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
