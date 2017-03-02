@@ -28,7 +28,7 @@ fObj <- basicFendR(networkFile=network.file,
 #sampling 10 drugs
 testDrugs=unique(fObj$phenoFeatureData$Phenotype)
 
-testDrugs<-sample(testDrugs,3)
+testDrugs<-sample(testDrugs,30)
 
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
@@ -40,7 +40,7 @@ fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
 
 ##we can add some generic fendR methods as well, such as plotting, statistics, loo, etc.
 res<-crossValidationCompare(fObj,
-  modelCall='lm',
+  modelCall='glm',
   modelArgs=list(),
   testPheno=testDrugs,
   sampleIndependent=TRUE)
