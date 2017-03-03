@@ -28,11 +28,9 @@ basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeDat
 #' @param Path to network file
 #' @keywords network feather
 #' @export
-#' @import igraph
 #' @return a fendR object with the graph parameter populated with an iGraph object where edge weights represent distance between nodes (smaller means *more* association)
 #' @examples
 loadNetwork.basicFendR <- function(fObj){
-  #library(igraph)
   tab<-read.table(fObj$network,stringsAsFactors =FALSE)
   net<-igraph::graph_from_data_frame(tab,directed=F)
   E(net)$weight<-1-min(tab[,3],1)
@@ -47,10 +45,8 @@ loadNetwork.basicFendR <- function(fObj){
 #' @param object That contains a data frame and network
 #' @keywords
 #' @export
-#' @import dplyr plyr doMC
 #' @return list of gene features for each phenotype/drug response
 createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
-    library(dplyr)
     doMC::registerDoMC()
 
     ##figure out which phenotypes have both feature data and outcome data
@@ -130,7 +126,6 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
 #' Get Engineered Features as model matrix
 #' @description Gets a \code{list} of response matrices for a phenotype
 #' @export
-#' @import dplyr
 engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
   if(length(phenotype)==0)
     phenotype <- unique(fObj$remappedFeatures$Phenotype)
@@ -142,7 +137,7 @@ engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
   mod.df<-dplyr::inner_join(out.dat,dplyr::select(in.dat,Sample,Gene,Value),by="Sample")%>%dplyr::select(Sample,Gene,Value,Phenotype,Response)
 
 #  mod.df<-filter(mod.df,!Sample%in%sampsToOmit)
-  mod.df<-mutate(mod.df,SamplePheno=paste(Sample,Phenotype,sep='_'))
+  mod.df<-dplyr::mutate(mod.df,SamplePheno=paste(Sample,Phenotype,sep='_'))
   dupes<-which(duplicated(select(mod.df,Gene,SamplePheno)))
   res<-tidyr::spread(select(mod.df[-dupes,],Gene,Value,SamplePheno,Response,Phenotype,Sample),Gene,Value)
 

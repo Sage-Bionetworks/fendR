@@ -12,11 +12,9 @@
 #' @param Path to sample file
 #' @keywords
 #' @export
-#' @import tidyr
 #' @examples
 #' @return tidied data frame with columns 'Gene','Sample' and 'Value'
 loadSampleData <- function(fname){
-  library(tidyr)
   tab<-read.table(fname,stringsAsFactors =FALSE)
   tab$Gene<-rownames(tab)
   res<-tidyr::gather(tab,"Sample","Value",1:(ncol(tab)-1))
@@ -29,14 +27,12 @@ loadSampleData <- function(fname){
 #' @param Path to phenotype file
 #' @keywords phenotype
 #' @export
-#' @import tidyr
 #' @examples
 #' @return tidied data frame with columns 'Sample','Phenotype','Response'
 loadPhenotypeData <- function(fname){
-  library(tidyr)
   tab<-read.table(fname)
   tab$Sample<-rownames(tab)
-  res<-gather(tab,"Phenotype","Response",1:(ncol(tab)-1))
+  res<-tidyr::gather(tab,"Phenotype","Response",1:(ncol(tab)-1))
   return(res)
 }
 
@@ -66,23 +62,22 @@ loadTargetData <- function(fname){
 #' \code{edgeList2matrix} loads in the target/phenotype data with the first column representing the drug of choice and the second represneting the gene
 #' @param elPath file path to edge list file with three colums, geneA, geneB and edge
 #' @param outPath directory for output if NULL it will be same as input file
-#' @import data.table tibble tidyr plyr bigmemory feather
 #' @export
 #' @return NULL if successfull,error otherwise
 edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a data.tableish represenation of an edgelist with 1st 2 colums being gene names
 {
-  suppressPackageStartupMessages(library("data.table"))
-  suppressPackageStartupMessages(library("tibble"))
-  suppressPackageStartupMessages(library("tidyr"))
-  suppressPackageStartupMessages(library("plyr"))
-  suppressPackageStartupMessages(library("feather"))
+#  suppressPackageStartupMessages(library("data.table"))
+#  suppressPackageStartupMessages(library("tibble"))
+#  suppressPackageStartupMessages(library("tidyr"))
+#  suppressPackageStartupMessages(library("plyr"))
+#  suppressPackageStartupMessages(library("feather"))
 
   writeLines("This function reads in a fully connected matrix as 3 column edge list:\n\"geneA geneB edge\"\nand writes out a NxN feather file...  Enjoy!")
 
-  el    <- fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","edge"); gc()              # names are needed for the plyr and tidyr calls
-  el    <- as_tibble(el)
+  el    <- data.table::fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","edge"); gc()              # names are needed for the plyr and tidyr calls
+  el    <- tibble:as_tibble(el)
   print("spreading df to matrix")
-  el    <- spread(el, key= "geneB", value = "edge"); gc()                                              # tidyr call to get matrix
+  el    <- tidyr::spread(el, key= "geneB", value = "edge"); gc()                                              # tidyr call to get matrix
   print("filling in lower tri")
   temp  <- as.matrix(el[, 2:ncol(el)]); gc()                                                           # necessary for filling in lower tri
   gName <- c(el$geneA[1],colnames(el)[-1]); rm(el);gc()
@@ -94,7 +89,7 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
 
   if(is.null(outPath)){outPath = dirname(elPath)}
   print(paste("writing out to", outPath))
-  write_feather(as.data.frame(ret), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
+  feather::write_feather(as.data.frame(ret), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
 }
 
 #' translateMatrixIdentifiers
@@ -105,7 +100,7 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
 #' @param agg.fun A string name of a function that will be used to aggregrate multiple columns (from) into a single column (to).  Currently: mean, min, or max.
 #' @export
 #' @return A symmetric matrix with columns and rows translated (including dropped or duplicated) according to the translationTable.
-translateMatrixIdentifiers <- function(matrix, translationTable, agg.fun = "mean", debug = FALSE) 
+translateMatrixIdentifiers <- function(matrix, translationTable, agg.fun = "mean", debug = FALSE)
 {
   if(!("from" %in% colnames(translationTable))) {
     stop("translationTable must have 'from' column\n")

@@ -9,4 +9,4 @@ Description: This package enables the comparison of network-based algorithms in 
 License: What license is it under?
 LazyData: TRUE
 RoxygenNote: 5.0.1.9000
-Depends: igraph
+Depends: igraph, bigmemory, data.table, doMC, dplyr, feather, ggplot2, igraph, plyr, tibble, tidyr
