@@ -19,7 +19,7 @@
 #' @export
 #' @return n3FendR object
 n3FendR <- function(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes, testDrugs = NA) {
-    
+
   phenos <- intersect(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
   if(!is.na(testDrugs) && any(testDrugs %in% phenos)) {
     cat(paste0("Reducing scope to only focus on ", paste(testDrugs, collapse=', '), " drugs\n"))
@@ -85,7 +85,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
 
     featureData <- subset(featureData, Gene %in% object$reduced.gene.set)
     phenoFeatureData <- subset(phenoFeatureData, Gene %in% object$reduced.gene.set)
-    
+
     ## Subset to phenotypes having both feature data and outcome data
     phenos <- intersect(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
     all.phenos <- union(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
@@ -105,15 +105,15 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
     m <- t(m)
     m <- as.matrix(m[, object$reduced.gene.set])
 
-    ## For each anchor (e.g., drug target) a of phenotype (e.g., drug) p, define a feature matrix m^a 
+    ## For each anchor (e.g., drug target) a of phenotype (e.g., drug) p, define a feature matrix m^a
     ## by propagating mutations in the original matrix m to nearest neighbors.  The network induced by anchor a is
-    ## represented by the edge list e^a_gg', where e^a_gg' > 0 only if g and/or g' = a and/or g = g' 
+    ## represented by the edge list e^a_gg', where e^a_gg' > 0 only if g and/or g' = a and/or g = g'
     ## The feature matrix m^d _for the phenotype_ is then defined over all anchors a for that phenotype
-    ## e.g., by assigning 
+    ## e.g., by assigning
     ## m^d_sg = max_a m^a_sg, or
     ## m^d_sg = min_a m^a_sg, or
     ## m^d_sg = mean_a m^a_sg
-    ## 
+    ##
     ## If g = anchor a, then
     ## m^a_sg = \sum_g' e^a_gg' m_sg'  (i.e., matrix x vector: m^a_,g = m e^a)
     ## If g != anchor a, then
@@ -129,7 +129,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
 
       ## For each gene target/anchor of that phenotype/drug, propagate mutation to nearest neighbors
       anchor.responses <- lapply(anchors, function(anchor) {
-        ## Read in column of feather network 
+        ## Read in column of feather network
         ## NB: we have ensured above this gene is in the network, so this read will not fail.
         anchor.weights <- as.data.frame(read_feather(object$network, columns=c(anchor)))[,1]
         names(anchor.weights) <- object$all.network.genes
@@ -138,6 +138,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
         m.a <- matrix(data = 0, nrow = nrow(m), ncol = ncol(m))
         rownames(m.a) <- rownames(m)
         colnames(m.a) <- colnames(m)
+
         if(num.degrees == 0 ) {
           ## For zeroth order, simply weight each mutation by its distance to the anchor
           ## i.e., m^a_sg = e_ga m_sg  (no sum)
@@ -165,7 +166,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
             m.a[, nn] <- ( m[, anchor] * nn.weights[anchor] ) + ( m[, nn] * nn.weights[nn] )
           }
         }
-        m.a  
+        m.a
       })
   
       ## anchor.response is a list of matrices m.a over anchors a.
@@ -261,9 +262,9 @@ originalResponseMatrix.n3FendR <- function(object, phenotype=c(), limit.to.engin
     stop("Restrict drugs/phenotypes in the constructor; not here")
   }
 
-  ## NB: for now, we will not subset the data to the target genes. 
+  ## NB: for now, we will not subset the data to the target genes.
   ## We might want to do that for sake of comparison.
-  
+
   ## Convert featureData in tidy format to a matrix m (with rows = samples, columns = genes)
   ## having entries m_sg for sample s and gene g
   featureData <- object$featureData
@@ -279,11 +280,13 @@ originalResponseMatrix.n3FendR <- function(object, phenotype=c(), limit.to.engin
   phenos <- intersect(object$sampleOutcomeData$Phenotype, object$phenoFeatureData$Phenotype)
   
   ## Create a feature matrix that simply appends the original feature matrices vertically.
+
   ## But also append the sample and phenotype.
   pheno.features <- ldply(phenos, .parallel = TRUE, .fun = function(pheno) { 
     m.d <- as.data.frame(m)
     m.d$Sample <- rownames(m.d)
     m.d$Phenotype <- pheno
+
     return(m.d)
   })
 
@@ -301,6 +304,7 @@ engineeredResponseMatrix.n3FendR <- function(object,phenotype=c()){
   if(length(phenotype)>0) {
     stop("Restrict drugs/phenotypes in the constructor; not here")
   }
+
   newdf <- merge(object$remappedFeatures, object$sampleOutcomeData, by = c("Sample", "Phenotype"), all = FALSE)
 
   return(newdf)

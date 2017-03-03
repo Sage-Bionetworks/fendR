@@ -36,13 +36,12 @@ calculate.roc <- function(response, predicted.response, ...) {
 #' @param sampleIndependent set to TRUE if your engineered features are independent of samples
 #' @keywords INCOMPLETE
 #' @export
-#' @import plyr dplyr doMC
 #' @return Data frame with 5 columsn: Phenotype, Sample, TrueValue,OriginalPred,EngineeredPred
 crossValidationCompare <- function(fendRObj,
   modelCall='lm',
   modelArgs=list(),
   testPheno=c(),
-  numCores=1,
+
   sampleIndependent=TRUE){
 
   ##get a list of all samples
@@ -63,7 +62,7 @@ crossValidationCompare <- function(fendRObj,
   engMatrix<-engineeredResponseMatrix(fendRObj)
 
 
-  doMC::registerDoMC(numCores)
+  doMC::registerDoMC()
   #for each sample, leave one out
   vals<-plyr::llply(all.samps,function(x){
 
@@ -97,7 +96,7 @@ crossValidationCompare <- function(fendRObj,
           Sample=rep(x,length(testPheno)),TrueValue=test.data)
 
       df
-      },.parallel = (numCores>1))
+      },.parallel = TRUE)
 
     all.res<-do.call('rbind',vals)
 
@@ -110,7 +109,6 @@ crossValidationCompare <- function(fendRObj,
 #' @param modelingDataFrame output of \code{crossValidationCompare}
 #' @keywords
 #' @export
-#' @import dplyr ggplot2
 #' @return image
 
 plotModelResults <- function(modelingDataFrame){
@@ -118,11 +116,11 @@ plotModelResults <- function(modelingDataFrame){
   origCor=cor(modelingDataFrame$OriginalPred,modelingDataFrame$TrueValue,use='pairwise.complete.obs')
   engCor=cor(modelingDataFrame$EngineeredPred,modelingDataFrame$TrueValue,use='pairwise.complete.obs')
 
-  byDrug<-modelingDataFrame%>%group_by(Phenotype)%>%summarise(original=cor(OriginalPred,TrueValue,use='pairwise.complete.obs'),engineered=cor(EngineeredPred,TrueValue,use='pairwise.complete.obs'))
+  byDrug<-modelingDataFrame%>%dplyr::group_by(Phenotype)%>%summarise(original=cor(OriginalPred,TrueValue,use='pairwise.complete.obs'),engineered=cor(EngineeredPred,TrueValue,use='pairwise.complete.obs'))
 
-  corDf<-byDrug%>%gather(Features,Correlation,2:3)
+  corDf<-byDrug%>%tidyr::gather(Features,Correlation,2:3)
   pdf('modelResults.pdf')
-  p<-  ggplot(corDf)+geom_point(aes(x=Phenotype,y=Correlation,col=Features))
+  p<-  ggplot2::ggplot(corDf)+ggplot2::geom_point(ggplot2::aes(x=Phenotype,y=Correlation,col=Features))
   print(p)
   dev.off()
 

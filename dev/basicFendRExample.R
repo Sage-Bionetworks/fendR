@@ -7,6 +7,9 @@ library(fendR)
 ##should we load the data or not? seems like a waste of time at this point
 gene.file<-system.file('CCLE_binary_mutation_matrix_ucscGenesFromCBioPortal.tsv',package='fendR')
 gene.data<-loadSampleData(gene.file)
+
+rna.seq.data<-system.file('CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv')
+rna.data<-loadSampleData(rna.seq.data)
 pheno.file<-system.file('CTRP_v20_AUC_vales_by_drug.tsv',package='fendR')
 pheno.data<-loadPhenotypeData(pheno.file)
 
@@ -28,6 +31,8 @@ fObj <- basicFendR(networkFile=network.file,
 #sampling 10 drugs
 testDrugs=unique(fObj$phenoFeatureData$Phenotype)
 
+testDrugs<-sample(testDrugs,3)
+
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
 fObj <- createNewFeaturesFromNetwork(fObj,testDrugs,numCores=20)
@@ -37,11 +42,11 @@ fObj <- createNewFeaturesFromNetwork(fObj,testDrugs,numCores=20)
 
 
 ##we can add some generic fendR methods as well, such as plotting, statistics, loo, etc.
-res<-crossValidationCompare(fObj,
-  modelCall='lm',
+#res<-crossValidationCompare(fObj,
+  modelCall='glm',
   modelArgs=list(),
   testPheno=testDrugs,
-  numCores=20,
+
   sampleIndependent=TRUE)
 plotModelResults(res)
 write.table('fendRtestResults.tsv',sep='\t',header=T,row.names=F)
