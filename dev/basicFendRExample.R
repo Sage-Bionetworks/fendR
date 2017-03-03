@@ -35,7 +35,7 @@ testDrugs<-sample(testDrugs,3)
 
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
-fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
+fObj <- createNewFeaturesFromNetwork(fObj,testDrugs,numCores=20)
 
 #origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
 #engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
@@ -46,6 +46,7 @@ fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
   modelCall='glm',
   modelArgs=list(),
   testPheno=testDrugs,
+
   sampleIndependent=TRUE)
 plotModelResults(res)
 write.table('fendRtestResults.tsv',sep='\t',header=T,row.names=F)

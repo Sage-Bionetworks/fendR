@@ -2,6 +2,28 @@
 ## This file contains the tools to compare models after feature engineering
 ##
 
+#' Calculate the Area Under the ROC Curve
+#' @description Calculate the Area Under the ROC Curve
+#' @param response  A vector of the response data
+#' @param predicted.response  A vector of the predicted response.
+#' @import pROC
+#' @return  The Area Under the ROC Curve
+calculate.auc <- function(response, predicted.response, ...) {
+  suppressPackageStartupMessages(library("pROC"))
+  pROC::auc(response=response, predictor=predicted.response, ...)
+}
+
+#' Calculate the ROC Curve
+#' @description Calculate the ROC Curve
+#' @param response  A vector of the response data
+#' @param predicted.response  A vector of the predicted response.
+#' @import pROC
+#' @return  A list of class "roc"
+calculate.roc <- function(response, predicted.response, ...) {
+  suppressPackageStartupMessages(library("pROC"))
+  pROC::roc(response=response, predictor=predicted.response, ...)
+}
+
 
 #' Assess fendR and modeling using cross validation
 #' @description Use leave-one-out cross validation to assess the feature mapping and

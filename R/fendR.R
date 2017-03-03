@@ -48,7 +48,7 @@ loadNetwork <- function(object){
 #' @keywords network propagation
 #' @export
 #' @return fendR object with the remappedFeature data.frame populated with four columns: Gene, Sample, Phenotype, Value
-createNewFeaturesFromNetwork<-function(object,testDrugs){
+createNewFeaturesFromNetwork<-function(object, ...){
   UseMethod('createNewFeaturesFromNetwork',object)
 }
 
@@ -61,6 +61,10 @@ createNewFeaturesFromNetwork<-function(object,testDrugs){
 #' @return A response matrix to use for modeling with the formula 'Response~.'
 originalResponseMatrix <- function(object, phenotype=c(), ...){
   UseMethod('originalResponseMatrix',object)
+}
+
+originalSparseResponseMatrix <- function(object, phenotype=c(), ...){
+  UseMethod('originalSparseResponseMatrix',object)
 }
 
 #' Get model-ready matrix from original features for fendR class
@@ -87,6 +91,10 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
 #' @return A response matrix to use for modeling with the formula Response~.
 engineeredResponseMatrix <- function(object,phenotype=c()){
   UseMethod('engineeredResponseMatrix',object)
+}
+
+engineeredSparseResponseMatrix <- function(object, phenotype=c(), ...){
+  UseMethod('engineeredSparseResponseMatrix',object)
 }
 
 
