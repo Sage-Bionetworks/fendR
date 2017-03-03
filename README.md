@@ -33,7 +33,7 @@ http://www.synapse.org/fendR
 
 ##Datasets to evaluate
 To start we should use genetic mutation data to infer response to drug response. By using datasets that also have mRNA expression data we can infer the Correlative networks described above.
-* CCLE/CTRP Data: An effort by the Broad to molecularly profile and chemically probe various cancer cell lines.  That data has been downloaded into Synapse already and can be found [here](https://www.synapse.org/#!Synapse:syn5889324). An effort to predict drug sensitivity from this data is described [here](http://cancerdiscovery.aacrjournals.org/content/5/11/1210.long).
+* CCLE/CTRP Data: An effort by the Broad to molecularly profile and chemically probe various cancer cell lines.  That data has been downloaded into Synapse already and can be found [here](https://www.synapse.org/#!Synapse:syn5889324). An effort to predict drug sensitivity from this data is described [here](http://cancerdiscovery.aacrjournals.org/content/5/11/1210.long). Other CTRP modeling approaches can be found on the [CTD2 data portal](https://ocg.cancer.gov/programs/ctd2/data-portal)
 * Sanger Data: This data has not been collected yet but is a parallel approach described [here](http://www.cell.com/cell/fulltext/S0092-8674(16)30746-2).
 * ROSMAP Data: predicting cognitive decline based on genotype. [ROSMAP Study](https://www.synapse.org/#!Synapse:syn3219045)
 
