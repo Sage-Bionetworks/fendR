@@ -22,6 +22,7 @@ caseLists<-getCaseLists(mycgds,mycancerstudy)
 mutSamps<-caseLists$case_list_id[grep("sequenced",caseLists[,1])]
 #print(paste('Collecting CCLE mutation data for',tiss,'tissue'))
 gene.groups=split(all.genes, ceiling(seq_along(all.genes)/500))
+
 dat<-lapply(gene.groups,function(g) getProfileData(mycgds,g,profile,mutSamps))
 
 ddat<-matrix()
@@ -43,13 +44,37 @@ colnames(bin.mat)<-sapply(colnames(bin.mat),function(x) unlist(strsplit(x,split=
 fname='../inst/CCLE_binary_mutation_matrix_ucscGenesFromCBioPortal.tsv'
 write.table(bin.mat,file=fname,row.names=T,col.names=T,sep='\t',quote=F)
 
+#now to get the expression data
+mycancerstudy='cellline_ccle_broad'
+mprofile<-'cellline_ccle_broad_mrna_median_Zscores' ##eventually test out both
+caseLists<-getCaseLists(mycgds,mycancerstudy)
+mrnaSamps<<-caseLists$case_list_id[grep('mrna',caseLists$case_list_id)]
+
+gene.groups=split(all.genes, ceiling(seq_along(all.genes)/400))
+dat<-lapply(gene.groups,function(g) getProfileData(mycgds,g,mprofile,mrnaSamps))
+
+ddat<-matrix()
+for(i in which(sapply(dat,nrow)!=0)){
+  ddat<-cbind(ddat,dat[[i]])
+}
+
+nans<-which(apply(ddat,2,function(x) all(is.nan(x))))
+if(length(nans)>0)
+  ddat<-ddat[,-nans]
+ddat<-ddat[,-1]
+ddat<-data.frame(t(ddat))
+rfname='../inst/CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv'
+write.table(ddat,rfname,row.names=T,col.names=T,sep='\t',quote=F)
+
 ##now we can re-rupload to new synapse project
-this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/sara/testDataPrep/formatCcleData.R'
+this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/dev/testDataPrep/formatCcleData.R'
 fendRDatDir='syn7465504'
 synStore(File(fname,parentId=fendRDatDir),used=list(list(url=this.script)))
+synStore(File(rfname,parentId=fendRDatDir),used=list(list(url=this.script)))
 
 #might as well push to the CCLE repo
 synStore(File(fname,parentId='syn5706496'),used=this.script)
+synStore(File(rfname,parentId='syn5706496'),used=this.script)
 
 ########DRUG RESPONSE DATA #########################
 ###now get the CTRP data
