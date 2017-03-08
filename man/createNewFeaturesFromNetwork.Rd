@@ -4,7 +4,7 @@
 \alias{createNewFeaturesFromNetwork}
 \title{Engineer Features from Network}
 \usage{
-createNewFeaturesFromNetwork(object, testDrugs)
+createNewFeaturesFromNetwork(object, ...)
 }
 \arguments{
 \item{object}{fendR object after running \code{loadNetwork}}

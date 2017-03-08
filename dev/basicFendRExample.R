@@ -8,8 +8,9 @@ library(fendR)
 gene.file<-system.file('CCLE_binary_mutation_matrix_ucscGenesFromCBioPortal.tsv',package='fendR')
 gene.data<-loadSampleData(gene.file)
 
-rna.seq.data<-system.file('CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv')
+rna.seq.data<-system.file('CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv', package='fendR')
 rna.data<-loadSampleData(rna.seq.data)
+
 pheno.file<-system.file('CTRP_v20_AUC_vales_by_drug.tsv',package='fendR')
 pheno.data<-loadPhenotypeData(pheno.file)
 
