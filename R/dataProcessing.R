@@ -94,24 +94,24 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
   suppressPackageStartupMessages(library("plyr"))
   suppressPackageStartupMessages(library("feather"))
   
-  writeLines("This function reads in a fully connected matrix as 3 column edge list:\n\"geneA geneB edge\"\nand writes out a NxN feather file...  Enjoy!")
+  writeLines("This function reads in a fully connected matrix as 4 column edge list:\n\"geneA geneB goldStandardFlag edge\"\n\nlike those found at http://fntm.princeton.edu/download/\nand writes out a NxN feather file\nit can take a while (like 30 min on a r3.4xlarge ec2 instance)...\nEnjoy!\n\nP.S. you may want to clean up your environment before running this")
   
-  el    <- fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","edge"); gc()              # names are needed for the plyr and tidyr calls
-  el    <- as_tibble(el)
+  el    <- data.table::fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","goldStandardFlag", "edge"); gc() # names are needed for the plyr and tidyr calls
+  el    <- el[,-3]; gc()
+  el    <- tibble::as_tibble(el); gc()
+  elRev <- el; elRev$geneA <- el$geneB; elRev$geneB <- el$geneA
+  el    <- base::rbind(el, elRev); rm(elRev); gc();
+  
   print("spreading df to matrix")
-  el    <- spread(el, key= "geneB", value = "edge"); gc()                                              # tidyr call to get matrix
-  print("filling in lower tri")
-  temp  <- as.matrix(el[, 2:ncol(el)]); gc()                                                           # necessary for filling in lower tri
-  gName <- c(el$geneA[1],colnames(el)[-1]); rm(el);gc()
-  ret   <- matrix(1,ncol(temp)+1, ncol(temp)+1); colnames(ret) <- gName
-
-  ret[upper.tri(ret)] <- temp[upper.tri(temp,diag = T)]
-  temp <- t(temp)
-  ret[lower.tri(ret)] <- temp[lower.tri(temp,diag = T)]; rm(temp); gc()
-
+  print(date())
+  el       <- tidyr::spread(el, key= "geneB", value = "edge"); gc() # tidyr call to get tible matrix
+  el       <- as.matrix(el[,-1])
+  diag(el) <- 1
+  print(date())
+  
   if(is.null(outPath)){outPath = dirname(elPath)}
   print(paste("writing out to", outPath))
-  write_feather(as.data.frame(ret), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
+  feather::write_feather(as.data.frame(el), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
 }
 
 
