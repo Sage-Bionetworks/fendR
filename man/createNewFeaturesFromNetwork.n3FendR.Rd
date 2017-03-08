@@ -5,10 +5,13 @@
 \title{Engineer Features from Network
 \code{createNewFeaturesFromNetwork} takes the phenotype scores and updates the gene scores based on phenotype}
 \usage{
-\method{createNewFeaturesFromNetwork}{n3FendR}(object, testDrugs = NA)
+\method{createNewFeaturesFromNetwork}{n3FendR}(object, testDrugs = NA,
+  num.degrees = 1)
 }
 \arguments{
 \item{object}{That contains a data frame and network}
+
+\item{num.degrees}{Consider nearest neighbors separated by num.degrees (only 0 or 1 are implemeneted)}
 }
 \value{
 list of gene features for each phenotype/drug response

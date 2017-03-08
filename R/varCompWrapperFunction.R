@@ -1,3 +1,9 @@
+#'
+#' \code{varCompWrapperFunction} takes outcome and features
+#' @param outcome
+#' @param features
+#' @keywords phenotype
+#' @export
 varCompWrapperFunction <- function(outcome,features){
   library(varComp)
   ####features have to be in observations as rows and features as column format

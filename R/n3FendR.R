@@ -64,11 +64,10 @@ n3FendR <- function(network, featureData, phenoFeatureData, sampleOutcomeData, t
 #' @param num.degrees Consider nearest neighbors separated by num.degrees (only 0 or 1 are implemeneted)
 #' @keywords
 #' @export
-#' @import dplyr
 #' @return list of gene features for each phenotype/drug response
 createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.degrees = 1) {
-    suppressPackageStartupMessages(library(plyr))
-    suppressPackageStartupMessages(library(feather))
+   # suppressPackageStartupMessages(library(plyr))
+  #  suppressPackageStartupMessages(library(feather))
 
     sampleOutcomeData <- object$sampleOutcomeData
     phenoFeatureData <- object$phenoFeatureData
@@ -121,7 +120,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
     ## i.e., for a non-anchor g, the only contributions are from g and from the anchor a
 
     ## For each phenotype/drug
-    pheno.features <- ldply(phenos, .parallel = TRUE, .fun = function(pheno) {
+    pheno.features <- plyr::ldply(phenos, .parallel = TRUE, .fun = function(pheno) {
 
       ## For each gene target of that phenotype/drug
       anchors <- as.character(subset(phenoFeatureData, Phenotype == pheno)$Gene)
@@ -147,7 +146,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
           }
         } else if(num.degrees == 1) {
           ## m^a_sg = \sum_g' e^a_gg' m_sg'  (i.e., matrix x vector: m^a_,g = m e^a)
-          ## Handle the anchor 
+          ## Handle the anchor
           m.a[, anchor] <- m %*% anchor.weights
           ## For each non-anchor neighbor
           ## If g != anchor a, then
@@ -168,7 +167,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
         }
         m.a
       })
-  
+
       ## anchor.response is a list of matrices m.a over anchors a.
       ## Define a single aggregate matrix m.p over the phenotype p.
       ## Obvious ways to do this include:
@@ -208,6 +207,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
 #' @keywords model fendR
 #' @keywords limit.to.engineered.genes Boolen indicating whether the returned features should be limited to those used in the engineered features (which may be restricted beyond the target.genes passed to the constructor by those in the network)
 #' @export
+#' @import plyr Matrix
 #' @return A list with slots "feature.mat" (the feature matrix) and "response.mat" (a data.frame with columns "Sample", "Phenotype", and "Response").  The rows of feature.mat and response.mat are in 1-to-1 correspondence.
 originalSparseResponseMatrix.n3FendR <- function(object, phenotype=c(), limit.to.engineered.genes = FALSE){
 
@@ -218,9 +218,9 @@ originalSparseResponseMatrix.n3FendR <- function(object, phenotype=c(), limit.to
     stop("Restrict drugs/phenotypes in the constructor; not here")
   }
 
-  ## NB: for now, we will not subset the data to the target genes. 
+  ## NB: for now, we will not subset the data to the target genes.
   ## We might want to do that for sake of comparison.
-  
+
   ## Convert featureData in tidy format to a matrix m (with rows = samples, columns = genes)
   ## having entries m_sg for sample s and gene g
   featureData <- object$featureData
@@ -278,11 +278,11 @@ originalResponseMatrix.n3FendR <- function(object, phenotype=c(), limit.to.engin
   }
 
   phenos <- intersect(object$sampleOutcomeData$Phenotype, object$phenoFeatureData$Phenotype)
-  
+
   ## Create a feature matrix that simply appends the original feature matrices vertically.
 
   ## But also append the sample and phenotype.
-  pheno.features <- ldply(phenos, .parallel = TRUE, .fun = function(pheno) { 
+  pheno.features <- ldply(phenos, .parallel = TRUE, .fun = function(pheno) {
     m.d <- as.data.frame(m)
     m.d$Sample <- rownames(m.d)
     m.d$Phenotype <- pheno
