@@ -1,7 +1,7 @@
 # Feature-Engineering-by-Network-Domain-fendR
 The goal of this project is to explore the ability to incorporate prior-knowledge networks to boost the predictive power of algorithms. We aim to explore various classes of networks, various ways of mapping data to these networks and then using existing algorithms to use network-mapped data to predict a phenotype.
 
-##Comparing Networks
+## Comparing Networks
 Through the incorporation of multiple networks we can evaluate how various types of networks aid in prediction of basic features.
 * Physical networks: networks based on protein-protein interaction networks
 * Associative networks: networks based on co-expression of transcripts across samples from relevant data sources.  [Metanetwork package](https://github.com/blogsdon/metanetwork), [Metanetwork Synapse Integration](https://github.com/blogsdon/metanetworkSynapse)
