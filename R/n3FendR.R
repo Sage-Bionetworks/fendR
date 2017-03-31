@@ -34,7 +34,8 @@ n3FendR <- function(network, featureData, phenoFeatureData, sampleOutcomeData, t
   ## Get the genes in the network
   all.network.genes <- names(feather_metadata(network)$types)
 
-  full.gene.set <- unique(intersect(featureData$Gene, intersect(phenoFeatureData$Gene, all.network.genes)))
+##  full.gene.set <- unique(intersect(featureData$Gene, intersect(phenoFeatureData$Gene, all.network.genes)))
+  full.gene.set <- unique(intersect(featureData$Gene, all.network.genes))
   num.genes.in.full.feature.space <- length(full.gene.set)
   reduced.gene.set <- full.gene.set
   if(!is.na(target.genes) && !is.null(target.genes)) {
@@ -84,7 +85,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
     ## to the target genes.
 
     featureData <- subset(featureData, Gene %in% object$reduced.gene.set)
-    phenoFeatureData <- subset(phenoFeatureData, Gene %in% object$reduced.gene.set)
+    ## phenoFeatureData <- subset(phenoFeatureData, Gene %in% object$reduced.gene.set)
     
     ## Subset to phenotypes having both feature data and outcome data
     phenos <- intersect(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
@@ -105,6 +106,28 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
     m <- t(m)
     m <- as.matrix(m[, object$reduced.gene.set])
 
+    ## If any of the anchors do not show up in the mutation matrix (e.g., this
+    ## might happen if mutations are discovered using targeted sequencing)
+    ## then add them
+    all.anchors <- unique(unlist(ldply(phenos, .parallel = TRUE, .fun = function(pheno) {
+      
+      ## For each gene target of that phenotype/drug
+      anchors <- as.character(subset(phenoFeatureData, Phenotype == pheno)$Gene)
+      anchors
+    })))
+    all.anchors <- all.anchors[all.anchors %in% object$all.network.genes]
+    
+    if(num.degrees == 1 ) {
+      for(anchor in all.anchors) {
+        if(!(anchor %in% colnames(m))) {
+          m <- cbind(m, rep(0, nrow(m)))
+          colnames(m)[ncol(m)] <- anchor
+        }
+      }
+    }
+    
+    features <- colnames(m)
+    
     ## For each anchor (e.g., drug target) a of phenotype (e.g., drug) p, define a feature matrix m^a 
     ## by propagating mutations in the original matrix m to nearest neighbors.  The network induced by anchor a is
     ## represented by the edge list e^a_gg', where e^a_gg' > 0 only if g and/or g' = a and/or g = g' 
@@ -125,6 +148,8 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
 
       ## For each gene target of that phenotype/drug
       anchors <- as.character(subset(phenoFeatureData, Phenotype == pheno)$Gene)
+      anchors <- anchors[anchors %in% object$all.network.genes]
+      
       cat(paste0("Performing nearest neighbor proportion for phenotype ", pheno, " with target(s): ", paste(anchors, collapse=","), "\n"))
 
       ## For each gene target/anchor of that phenotype/drug, propagate mutation to nearest neighbors
@@ -133,8 +158,8 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
         ## NB: we have ensured above this gene is in the network, so this read will not fail.
         anchor.weights <- as.data.frame(read_feather(object$network, columns=c(anchor)))[,1]
         names(anchor.weights) <- object$all.network.genes
-        anchor.weights <- as.matrix(anchor.weights[object$reduced.gene.set])
-        names(anchor.weights) <- object$reduced.gene.set
+        anchor.weights <- as.vector(anchor.weights[features])
+        names(anchor.weights) <- features
         m.a <- matrix(data = 0, nrow = nrow(m), ncol = ncol(m))
         rownames(m.a) <- rownames(m)
         colnames(m.a) <- colnames(m)
@@ -160,14 +185,13 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
             ## nearest neighbor nn from the feather object
             nn.weights <- as.data.frame(read_feather(object$network, columns=c(nn)))[,1]
             names(nn.weights) <- object$all.network.genes
-            nn.weights <- as.matrix(nn.weights[object$reduced.gene.set])
-            names(nn.weights) <- object$reduced.gene.set
-            m.a[, nn] <- ( m[, anchor] * nn.weights[anchor] ) + ( m[, nn] * nn.weights[nn] )
+            nn.weights <- as.vector(nn.weights[features])
+            names(nn.weights) <- features
+            m.a[, nn] <- ( m[, nn] * nn.weights[nn] ) + ( m[, anchor] * nn.weights[anchor] )
           }
         }
         m.a  
       })
-  
       ## anchor.response is a list of matrices m.a over anchors a.
       ## Define a single aggregate matrix m.p over the phenotype p.
       ## Obvious ways to do this include:

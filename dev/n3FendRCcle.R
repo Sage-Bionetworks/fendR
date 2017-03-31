@@ -262,6 +262,500 @@ dev.off()
 
 stop("stop")
 
+library("downloader")
+
+## Download CCLE oncomap calls
+url <- "https://portals.broadinstitute.org/ccle/downloadFile/DefaultSystemRoot/exp_10/ds_23/CCLE_Oncomap3_2012-04-09.maf?downloadff=true&fileId=3000"
+dest <- "CCLE_Oncomap3_2012-04-09.maf"
+download(url, destfile = dest)
+oncomap.tbl <- read.table(dest, sep="\t", header=TRUE, quote="") 
+
+oncomap.tbl$ccl_name <- unlist(lapply(oncomap.tbl$Tumor_Sample_Barcode, 
+                                      function(x) {
+                                        r <- regexpr(pattern="^([^_]+)", text=x)
+                                        substr(x, r[1], r[1] + attr(r, "match.length")[1] - 1)
+                                      }))
+
+## Download CCLE targeted sequencing neutral missense variants filtered (called TES-A in Basu)
+url <- "https://portals.broadinstitute.org/ccle/downloadFile/DefaultSystemRoot/exp_10/ds_26/CCLE_hybrid_capture1650_hg19_NoCommonSNPs_NoNeutralVariants_CDS_2012.05.07.maf.gz?downloadff=true&fileId=6873"
+dest <- "CCLE_hybrid_capture1650_hg19_NoCommonSNPs_NoNeutralVariants_CDS_2012.05.07.maf.gz"
+download(url, destfile = dest)
+tesa.tbl <- read.table(gzfile(dest), sep="\t", header=TRUE, quote="")
+
+## Download CCLE SNV data
+url <- "https://portals.broadinstitute.org/ccle/downloadFile/DefaultSystemRoot/exp_10/ds_20/CCLE_copynumber_byGene_2013-12-03.txt.gz?downloadff=true&fileId=17599"
+dest <- "CCLE_copynumber_byGene_2013-12-03.txt.gz"
+download(url, destfile = dest)
+cnv.tbl <- read.table(gzfile(dest), sep="\t", header=TRUE, quote="")
+colnames(cnv.tbl) <- unlist(lapply(colnames(cnv.tbl),
+                                   function(x) {
+                                     r <- regexpr(pattern="^([^_]+)", text=x)
+                                     substr(x, r[1], r[1] + attr(r, "match.length")[1] - 1)
+                                   }))
+
+tesa.tbl$ccl_name <- unlist(lapply(tesa.tbl$Tumor_Sample_Barcode, 
+                                      function(x) {
+                                        r <- regexpr(pattern="^([^_]+)", text=x)
+                                        substr(x, r[1], r[1] + attr(r, "match.length")[1] - 1)
+                                      }))
+
+
+sample.info.tbl$ccl_name <- unlist(lapply(sample.info.tbl$CCLE.name, 
+                                      function(x) {
+                                        r <- regexpr(pattern="^([^_]+)", text=x)
+                                        substr(x, r[1], r[1] + attr(r, "match.length")[1] - 1)
+                                      }))
+
+
+url <- "https://portals.broadinstitute.org/ccle/downloadFile/DefaultSystemRoot/exp_10/ds_23/CCLE_Oncomap3_Assays_2012-04-09.csv?downloadff=true&fileId=3001"
+dest <- "CCLE_Oncomap3_Assays_2012-04-09.csv"
+download(url, destfile = dest)
+oncomap.assays.tbl <- read.table(dest, sep=",", header=TRUE, quote="\"") 
+
+url <- "https://portals.broadinstitute.org/ccle/downloadFile/DefaultSystemRoot/exp_10/ds_22/CCLE_sample_info_file_2012-10-18.txt?downloadff=true&fileId=6801"
+dest <- "CCLE_sample_info_file_2012-10-18.txt"
+download(url, destfile = dest)
+sample.info.tbl <- read.table(dest, sep="\t", header=TRUE)
+
+url <- "ftp://anonymous:guest@caftpd.nci.nih.gov/pub/OCG-DCC/CTD2/Broad/CTRPv2.0_2015_ctd2_ExpandedDataset/CTRPv2.0_2015_ctd2_ExpandedDataset.zip"
+dest <- "CTRPv2.0_2015_ctd2_ExpandedDataset.zip"
+download(url = url, destfile = dest)
+unzip(dest)
+
+url <- "ftp://anonymous:guest@caftpd.nci.nih.gov/pub/OCG-DCC/CTD2/Broad/CTRPv1.0_2013_pub_Cell_154_1151/CTRPv1.0_2013_pub_Cell_154_1151.zip"
+dest <- "CTRPv1.0_2013_pub_Cell_154_1151.zip"
+download(url = url, destfile = dest)
+unzip(dest)
+
+## url <- "ftp://anonymous:guest@caftpd.nci.nih.gov/pub/OCG-DCC/CTD2/Broad/CTRPv2.0_2015_ctd2_ExpandedDataset/CTRPv2.0._COLUMNS.xlsx"
+## dest <- "CTRPv2.0._COLUMNS.xlsx"
+
+## Load the AUC drug-response results
+file <- "v20.data.curves_post_qc.txt"
+ctrpv2_aucs <- read.table(file, sep="\t", header=TRUE)
+
+file <- "v10.D3.area_under_conc_curve.txt"
+ctrpv1_aucs <- read.table(file, sep="\t", header=TRUE)
+
+
+plot.auc.vs.annotation <- function(tbl, anno.col, sample.col = "ccl_name", auc.col = "area_under_curve", main = NULL) {
+  library(reshape2)
+  library(gridExtra)
+  tbl <- tbl[!is.na(tbl[,anno.col]),]
+  tbl <- tbl[!is.na(tbl[,auc.col]),]
+  
+  ## Sometimes we have replicate samples -- make them unique
+  tbl[, sample.col] <- paste(tbl[, sample.col], 1:nrow(tbl), sep="")
+  
+  o <- order(tbl[,auc.col], -as.numeric(as.character(tbl[,anno.col])))
+##  o <- order(tbl[,auc.col])  
+  levels <- unique(tbl[o,sample.col])
+  
+  flag <- tbl[,auc.col] < 1
+  tbl[flag,auc.col] <- 1
+  flag <- tbl[,auc.col] > 6
+  tbl[flag,auc.col] <- 6
+  
+  tbl.melt <- melt(tbl[,c(sample.col, auc.col)], id.vars = sample.col)
+##  o <- order(tbl.melt$value, decreasing = FALSE)
+##  levels <- unique(tbl.melt[o,sample.col])
+  tbl.melt[,sample.col] <- factor(tbl.melt[,sample.col], levels = levels)
+  p.heat <- ggplot(data = tbl.melt, aes_string(x = "variable", y = sample.col))
+  p.heat <- p.heat + geom_tile(aes(fill = value))
+  p.heat <- p.heat + scale_fill_gradient2(high = "blue", mid = "white", low = "red", limits = c(1.0, 6.0), midpoint = 3.5, breaks = c(1.0, 3.5, 6.0))
+  p.heat <- p.heat + guides(fill = guide_colourbar(title = "AUC"))
+  
+  g.heat <- ggplotGrob(p.heat)
+  g.legend.heat <- gtable::gtable_filter(g.heat, "guide-box")
+  heat.label <- gtable::gtable_filter(g.heat, "axis-b")
+  g.heat <- gtable::gtable_filter(g.heat, "panel")
+
+  mt.wt <- 0  
+  if((length(unique(tbl[,anno.col])) == 2) && (all(tbl[,anno.col] %in% c(0,1)))) {
+    mt.wt <- 1
+  }
+  if(mt.wt == 1) {
+    tbl[, anno.col] <- as.numeric(as.character(tbl[, anno.col]))
+    flag <- tbl[,anno.col] == 1
+    tbl[flag,anno.col] <- "MT"
+    tbl[!flag,anno.col] <- "WT"
+    tbl[, anno.col] <- factor(tbl[, anno.col])
+  }
+  tbl.melt <- melt(tbl[,c(sample.col, anno.col)], id.vars = sample.col)
+  tbl.melt[,sample.col] <- factor(tbl.melt[,sample.col], levels = levels)
+  p.anno <- ggplot(data = tbl.melt, aes_string(x = "variable", y = sample.col))
+  p.anno <- p.anno + geom_tile(aes(fill = value))
+  if(mt.wt == 1) {
+    p.anno <- p.anno + scale_fill_manual(values = c("MT" = "black", "WT" = "white"))
+    p.anno <- p.anno + guides(fill = guide_legend(title = toupper(anno.col)))
+  } else {
+    p.anno <- p.anno + guides(fill = guide_colourbar(title = toupper(anno.col)))
+    p.anno <- p.anno + scale_fill_gradient(high = "black", low = "white")    
+  }
+  
+  g.anno <- ggplotGrob(p.anno)
+  g.legend.anno <- gtable::gtable_filter(g.anno, "guide-box")
+  anno.label <- gtable::gtable_filter(g.anno, "axis-b")
+  g.anno <- gtable::gtable_filter(g.anno, "panel")
+  grobs <- list(g.heat, g.anno, g.legend.heat, g.legend.anno, heat.label, anno.label)
+  layout <- rbind(c(1,2,3),c(1,2,4),c(5,6,NA))
+  heights <- c(1,1,0.5)
+  widths <- c(1,1,0.5)
+  if(!is.null(main)) {
+    layout <- rbind(c(7,7,NA), layout)
+    heights <- c(0.25, heights)
+    p.title <- ggplot()
+    p.title <- p.title + ggtitle(main)
+    g.title <- ggplotGrob(p.title)
+    ## print(g.title)
+    ## g.title <- gtable::gtable_filter(g.title, "title")
+    grobs[[length(grobs)+1]] <- g.title
+  }
+  grid.arrange(grobs = grobs, layout_matrix = layout, heights = heights, widths = widths)
+  return(NULL)
+}
+
+## Plot BRAF mutations vs AUCs for P-0850
+## oncomap.ccls <- unique(oncomap.tbl$ccl_name)
+oncomap.ccls <- as.character(unique(sample.info.tbl$ccl_name[sample.info.tbl$Oncomap == "yes"]))
+
+oncomap.braf <- data.frame(ccl_name = oncomap.ccls, BRAF = 0)
+rownames(oncomap.braf) <- oncomap.braf$ccl_name
+braf.mutated.samples <- unique(oncomap.tbl$ccl_name[oncomap.tbl$Hugo_Symbol == "BRAF"])
+oncomap.braf[braf.mutated.samples,"BRAF"] <- 1
+ctrpv1_p0850_aucs <- ctrpv1_aucs[ctrpv1_aucs$cpd_name == "P-0850",]
+oncomap.braf <- merge(oncomap.braf, ctrpv1_p0850_aucs, by="ccl_name", all=FALSE)
+oncomap.braf <- oncomap.braf[,c("ccl_name", "BRAF", "area_under_curve")]
+
+
+## Propagate braf using network
+
+## Create tidy version of oncomap -- this will only include genes with mutations (i.e., "1"s)
+ctrpv1.oncomap <- oncomap.tbl[,c("Hugo_Symbol", "ccl_name")]
+colnames(ctrpv1.oncomap) <- c("Gene", "Sample")
+ctrpv1.oncomap$Value <- 1
+gene <- ctrpv1.oncomap$Gene[1]
+## Add all of the assayed samples for one of the genes--when we fill in missing values
+## this will force the samples to exist for all of the genes
+tmp <- data.frame(Gene = rep(gene, length(oncomap.ccls)), Sample = oncomap.ccls)
+ctrpv1.oncomap <- merge(ctrpv1.oncomap, tmp, all=TRUE)
+ctrpv1.oncomap$Value[is.na(ctrpv1.oncomap$Value)] <- 0
+
+## Translate to a matrix, which will fill in zeros
+ctrpv1.oncomap.mat <- acast(formula = Sample ~ Gene, data = ctrpv1.oncomap, fill = 0, value.var = "Value", fun.aggregate = function(x) ifelse(any(x > 0), 1, 0))
+
+## Now translate back to tidy 
+ctrpv1.oncomap <- melt(ctrpv1.oncomap.mat)
+colnames(ctrpv1.oncomap) <- c("Sample", "Gene", "Value")
+
+## Create tidy version of TES-A capture sequencing -- this will only include genes with mutations (i.e., "1"s)
+flag <- tesa.tbl$Variant_Classification == "Missense_Mutation"
+## ctrpv1.tesa <- tesa.tbl[flag,c("Hugo_Symbol", "ccl_name")]
+ctrpv1.tesa <- tesa.tbl[,c("Hugo_Symbol", "ccl_name")]
+colnames(ctrpv1.tesa) <- c("Gene", "Sample")
+
+ctrpv1.tesa <- unique(ctrpv1.tesa)
+## tab <- table(ctrpv1.tesa$Sample)
+## plot(hist(tab[tab < 500], breaks=seq(from=0, to=500,by=50), probability=FALSE))
+
+ctrpv1.tesa$Value <- 1
+gene <- ctrpv1.tesa$Gene[1]
+## Add all of the assayed samples for one of the genes--when we fill in missing values
+## this will force the samples to exist for all of the genes
+tmp <- data.frame(Gene = rep(gene, length(oncomap.ccls)), Sample = oncomap.ccls)
+ctrpv1.tesa <- merge(ctrpv1.tesa, tmp, all=TRUE)
+ctrpv1.tesa$Value[is.na(ctrpv1.tesa$Value)] <- 0
+
+## Translate to a matrix, which will fill in zeros
+ctrpv1.tesa.mat <- acast(formula = Sample ~ Gene, data = ctrpv1.tesa, fill = 0, value.var = "Value", fun.aggregate = function(x) ifelse(any(x > 0), 1, 0))
+
+## Now translate back to tidy 
+ctrpv1.tesa <- melt(ctrpv1.tesa.mat)
+colnames(ctrpv1.tesa) <- c("Sample", "Gene", "Value")
+
+
+ctrpv1.pheno.data <- ctrpv1_aucs
+colnames(ctrpv1.pheno.data) <- c("Sample", "Phenotype", "Response")
+
+## Read in ctrp v1 drug targets.
+target.file <- "v10.M1.informer_set.txt"
+ctrpv1.target.data <- read.table(target.file, sep="\t", header=TRUE, comment.char="", quote="\"", as.is=TRUE)
+ctrpv1.target.data <- ctrpv1.target.data[,c("cpd_name", "gene_symbol_of_protein_target")]
+colnames(ctrpv1.target.data) <- c("Phenotype", "Gene")
+library(plyr)
+ctrpv1.target.data <- ddply(.data = ctrpv1.target.data, .variables = c("Phenotype", "Gene"),
+                            .fun = function(df) {
+                              genes <- unlist(strsplit(x=as.character(df$Gene[1]), split=";[ ]*"))
+                              data.frame(Phenotype = rep(df$Phenotype[1], length(genes)), Gene = genes)
+                            })
+
+## target.genes <- unique(ctrpv1.target.data$Gene)
+target.genes <- unique(ctrpv1.oncomap$Gene)
+
+featureData = ctrpv1.oncomap
+sampleOutcomeData = ctrpv1.pheno.data
+phenoFeatureData = ctrpv1.target.data
+
+testDrugs = c("P-0850")
+
+## Create the n3 fendR object
+fObj.ctrpv1 <- n3FendR(network = network.file,
+                       featureData = ctrpv1.oncomap,
+                       sampleOutcomeData = ctrpv1.pheno.data,
+                       phenoFeatureData = ctrpv1.target.data,
+                       target.genes = target.genes,
+                       testDrugs = testDrugs)
+
+cat("Enginerring NN = 0 features\n")
+fObj.nn0.ctrpv1 <- createNewFeaturesFromNetwork(fObj.ctrpv1, num.degrees = 0)
+
+## Create the engineered features (nearest neighbor degree = 1)
+cat("Enginerring NN = 1 features\n")
+fObj.nn1.ctrpv1 <- createNewFeaturesFromNetwork(fObj.ctrpv1, num.degrees = 1)
+
+cat("Get engineered NN = 0 sparse matrix\n")
+m.eng.nn0.ctrpv1 <- engineeredSparseResponseMatrix(fObj.nn0.ctrpv1)
+
+cat("Get engineered NN = 1 sparse matrix\n")
+m.eng.nn1.ctrpv1 <- engineeredSparseResponseMatrix(fObj.nn1.ctrpv1)
+
+m.orig.ctrpv1 <- originalResponseMatrix(fObj.nn0.ctrpv1, limit.to.engineered.genes = TRUE)
+
+make.auc.vs.gene.plots <- function(m.eng.nn0, m.eng.nn1, m.orig, m.oncomap, gene, prefix, response.var = "AUC") {
+
+  ## NB: nn0 is no change from the 0/1 response
+  cat(paste0("Fitting ", response.var, " ~ . to nn0\n"))
+  tmp <- as.data.frame(as.matrix(m.eng.nn0$feature.mat))
+  tmp[,response.var] <- m.eng.nn0$response.mat$Response
+  lm.fit <- lm(formula = as.formula(paste0(response.var, " ~ .")), data = tmp)
+  sum <- summary(lm.fit)
+  f <- sum$fstatistic
+  lm.pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+
+  if((gene %in% colnames(m.eng.nn0$feature.mat)) && (length(unique(m.eng.nn0$feature.mat[,gene])) > 1)) {
+    cat(paste0("Fitting ", response.var, "Response ~ ", gene, " to nn0\n"))
+    tmp <- m.eng.nn0$response.mat
+    tmp[,gene] <- m.eng.nn0$feature.mat[,gene]
+    colnames(tmp)[which(colnames(tmp)=="Response")] <- response.var
+    ## tmp <- tmp[, !(colnames(tmp) %in% c("Sample", "Phenotype"))]
+    lm.fit <- lm(formula = as.formula(paste(response.var, gene, sep = " ~ ")), data = tmp)
+    sum <- summary(lm.fit)
+    print(coefficients(sum))
+    gene.pval <- coefficients(sum)[gene, 4]
+  
+    png(paste0(prefix, "-nn0.png"))
+    n <- nrow(tmp)
+    plot.auc.vs.annotation(tmp, anno.col=gene, sample.col="Sample", auc.col=response.var, main=paste0(response.var, " ~ ", gene, " (univariate NN0; p = ", format(gene.pval, digits=2), "; n = ", n, ")\n", response.var, " ~ all genes (multivariate NN0; p = ", format(lm.pval, digits=2), "; n = ", n, ")"))
+    d <- dev.off()
+  }
+  
+  cat(paste0("Fitting ", response.var, " ~ . to nn1\n"))
+  tmp <- as.data.frame(as.matrix(m.eng.nn1$feature.mat))
+  tmp[, response.var] <- m.eng.nn1$response.mat$Response
+  lm.fit <- lm(formula = as.formula(paste0(response.var, " ~ .")), data = tmp)
+  sum <- summary(lm.fit)
+  f <- sum$fstatistic
+  lm.pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+
+  if((gene %in% colnames(m.eng.nn1$feature.mat)) && (length(unique(m.eng.nn1$feature.mat[,gene])) > 1)) {
+    cat(paste0("Fitting ", response.var, " ~ ", gene, " to nn1\n"))
+    tmp <- m.eng.nn1$response.mat
+    tmp[,gene] <- m.eng.nn1$feature.mat[,gene]
+    colnames(tmp)[which(colnames(tmp)=="Response")] <- response.var
+    ## tmp <- tmp[, !(colnames(tmp) %in% c("Sample", "Phenotype"))]
+    lm.fit <- lm(formula = as.formula(paste(response.var, gene, sep = " ~ ")), data = tmp)
+    sum <- summary(lm.fit)
+    print(coefficients(sum))
+    gene.pval <- coefficients(sum)[gene, 4]
+  
+    png(paste0(prefix, "-nn1.png"))
+    n <- nrow(tmp)
+    plot.auc.vs.annotation(tmp, anno.col=gene, sample.col="Sample", auc.col=response.var, main=paste0(response.var, " ~ ", gene, " (univariate NN1; p = ", format(gene.pval, digits=2), "; n = ", n, ")\n", response.var, " ~ all genes (multivariate NN1; p = ", format(lm.pval, digits=2), "; n = ", n, ")"))
+    d <- dev.off()
+  }
+  
+  ## Calculate pvalue for AUC ~ gene
+  if((gene %in% colnames(m.oncomap)) && (length(unique(m.oncomap[,gene])) > 1)) {
+    cat(paste0("Fitting ", response.var, " ~ ", gene, " to orig\n"))
+    lm.fit <- lm(formula = as.formula(paste(response.var, gene, sep = " ~ ")), data = m.oncomap)
+    sum <- summary(lm.fit)
+    print(coefficients(sum))
+    flag <- grepl(rownames(coefficients(sum)), pattern=gene)
+    gene.pval <- coefficients(sum)[flag, 4]
+
+    ## Calculate pvalue for AUC ~ gene mutations
+    cat(paste0("Fitting ", response.var, " ~ . to orig\n"))
+    m.orig <- m.orig[, !(colnames(m.orig) %in% c("Sample", "Phenotype"))]
+    colnames(m.orig)[which(colnames(m.orig) == "Response")] <- response.var
+    lm.fit <- lm(formula = as.formula(paste0(response.var, " ~ .")), data = m.orig)
+    sum <- summary(lm.fit)
+    f <- sum$fstatistic
+    lm.pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+    print(sum)
+    png(paste0(prefix, "-orig.png"))
+    n <- nrow(m.oncomap)
+    plot.auc.vs.annotation(m.oncomap, anno.col=gene, sample.col="ccl_name", auc.col = response.var, main=paste0(response.var, " ~ ", gene, " (univariate Orig; p = ", format(gene.pval, digits=2), "; n = ", n, ")\n", response.var, " ~ all genes (multivariate Orig; p = ", format(lm.pval, digits=2), "; n = ", n, ")"))
+    d <- dev.off()
+  }
+}
+
+## NB: nn0 is no change from the 0/1 response
+tmp <- as.data.frame(as.matrix(m.eng.nn0.ctrpv1$feature.mat))
+tmp$Response <- m.eng.nn0.ctrpv1$response.mat$Response
+lm.fit <- lm(formula = Response ~ ., data = tmp)
+sum <- summary(lm.fit)
+f <- sum$fstatistic
+lm.pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+
+tmp <- m.eng.nn0.ctrpv1$response.mat
+tmp$braf <- m.eng.nn0.ctrpv1$feature.mat[,"BRAF"]
+lm.fit <- lm(formula = Response ~ braf, data = tmp)
+sum <- summary(lm.fit)
+braf.pval <- coefficients(sum)["braf", 4]
+
+png("braf-vs-P-0850-nn0.png")
+plot.auc.vs.annotation(tmp, anno.col="braf", sample.col="Sample", auc.col="Response", main=paste0("AUC ~ BRAF (NN0; p = ", format(braf.pval, digits=2), ")\nAUC ~ mutations (NN0; p = ", format(lm.pval, digits=2), ")"))
+d <- dev.off()
+
+tmp <- as.data.frame(as.matrix(m.eng.nn1.ctrpv1$feature.mat))
+tmp$Response <- m.eng.nn1.ctrpv1$response.mat$Response
+lm.fit <- lm(formula = Response ~ ., data = tmp)
+sum <- summary(lm.fit)
+f <- sum$fstatistic
+lm.pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+
+tmp <- m.eng.nn1.ctrpv1$response.mat
+tmp$braf <- m.eng.nn1.ctrpv1$feature.mat[,"BRAF"]
+lm.fit <- lm(formula = Response ~ braf, data = tmp)
+sum <- summary(lm.fit)
+braf.pval <- coefficients(sum)["braf", 4]
+
+png("braf-vs-P-0850-nn1.png")
+plot.auc.vs.annotation(tmp, anno.col="braf", sample.col="Sample", auc.col="Response", main=paste0("AUC ~ BRAF (NN1; p = ", format(braf.pval, digits=2), ")\nAUC ~ mutations (NN1; p = ", format(lm.pval, digits=2), ")"))
+d <- dev.off()
+
+## Calculate pvalue for AUC ~ braf
+lm.fit <- lm(formula = area_under_curve ~ braf, data = oncomap.braf)
+sum <- summary(lm.fit)
+coefficients(sum)
+braf.pval <- coefficients(sum)["braf", 4]
+
+## Calculate pvalue for AUC ~ gene mutations
+m.orig.ctrpv1 <- originalResponseMatrix(fObj.nn0.ctrpv1, limit.to.engineered.genes = TRUE)
+m.orig.ctrpv1 <- m.orig.ctrpv1[, !(colnames(m.orig.ctrpv1) %in% c("Sample", "Phenotype"))]
+lm.fit <- lm(formula = Response ~ ., data = m.orig.ctrpv1)
+sum <- summary(lm.fit)
+f <- sum$fstatistic
+lm.pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+
+png("braf-vs-P-0850-orig.png")
+plot.auc.vs.annotation(oncomap.braf, anno.col="braf", sample.col="ccl_name", main=paste0("AUC ~ BRAF (Orig; p = ", format(braf.pval, digits=2), ")\nAUC ~ mutations (Orig; p = ", format(lm.pval, digits=2), ")"))
+d <- dev.off()
+
+
+make.auc.vs.gene.plots(m.eng.nn0.ctrpv1, m.eng.nn1.ctrpv1, m.orig.ctrpv1, oncomap.braf, "BRAF", "BRAF-vs-P-0850") 
+
+do.drug.gene <- function(aucs, feature.data, feature.data.mat, pheno.data, target.data, genes, drug, auc.drug.col = "cpd_name", auc.sample.col = "ccl_name", auc.response.col = "AUC", feature.data.gene.col = "Gene", postfix = NULL) {
+  drug_aucs <- aucs[aucs[, auc.drug.col] == drug,]
+  testDrugs = c(drug)
+  target.genes <- unique(feature.data[, feature.data.gene.col])
+
+  ## Create the n3 fendR object
+  fObj.drug <- n3FendR(network = network.file,
+                       featureData = feature.data,
+                       sampleOutcomeData = pheno.data,
+                       phenoFeatureData = target.data,
+                       target.genes = target.genes,
+                       testDrugs = testDrugs)
+
+  cat("Creasting NN0 features")
+  fObj.nn0.drug <- createNewFeaturesFromNetwork(fObj.drug, num.degrees = 0)
+  cat("Creasting NN1 features")
+  fObj.nn1.drug <- createNewFeaturesFromNetwork(fObj.drug, num.degrees = 1)
+
+  m.eng.nn0.drug <- engineeredSparseResponseMatrix(fObj.nn0.drug)
+  m.eng.nn1.drug <- engineeredSparseResponseMatrix(fObj.nn1.drug)
+  m.orig.drug <- originalResponseMatrix(fObj.nn0.drug, limit.to.engineered.genes = TRUE)
+
+  for(gene in genes) {
+    feature.data.gene <- NULL
+    if(gene %in% colnames(feature.data.mat)) {
+      feature.data.gene <- feature.data.mat[,gene,drop=F]
+      feature.data.gene <- cbind(feature.data.gene, rownames(feature.data.mat))
+      colnames(feature.data.gene)[ncol(feature.data.gene)] <- auc.sample.col
+    } else {
+      feature.data.gene <- data.frame(ccl_name = rownames(feature.data.mat))
+      colnames(feature.data.gene) <- auc.sample.col
+      feature.data.gene <- cbind(feature.data.gene, rep(0, nrow(feature.data.mat)))
+      colnames(feature.data.gene)[ncol(feature.data.gene)] <- gene
+    } 
+    feature.data.gene <- merge(feature.data.gene, drug_aucs, by=auc.sample.col, all=FALSE)
+    feature.data.gene <- feature.data.gene[,c(auc.sample.col, gene, auc.response.col)]
+
+    prefix <- paste0(gene, "-vs-", drug)
+    if(!is.null(postfix)) {
+      prefix <- paste0(prefix, "-", postfix)
+    }
+    make.auc.vs.gene.plots(m.eng.nn0.drug, m.eng.nn1.drug, m.orig.drug, feature.data.gene, gene, prefix)
+  }
+}
+
+
+colnames(ctrpv1_aucs)[which(colnames(ctrpv1_aucs) == "area_under_curve")] <- "AUC"
+
+drug <- "P-0850"
+genes <- "BRAF"
+do.drug.gene(ctrpv1_aucs, ctrpv1.oncomap, ctrpv1.oncomap.mat, ctrpv1.pheno.data, ctrpv1.target.data, genes = genes, drug)
+
+genes <- c("NRAS", "KRAS", "MAP2K1", "MAP2K2")
+drug <- "selumetinib"
+do.drug.gene(ctrpv1_aucs, ctrpv1.oncomap, ctrpv1.oncomap.mat, ctrpv1.pheno.data, ctrpv1.target.data, genes = genes, drug, postfix = "onco")
+
+
+## Fig 2A EGFR Lung Onco
+lung.samples <- sample.info.tbl$ccl_name[sample.info.tbl$Site.Primary == "lung"]
+drug <- "neratinib"
+genes <- c("EGFR", "MAP3K8")
+do.drug.gene(ctrpv1_aucs[ctrpv1_aucs$ccl_name %in% lung.samples,], ctrpv1.oncomap[ctrpv1.oncomap$Sample %in% lung.samples,], ctrpv1.oncomap.mat[rownames(ctrpv1.oncomap.mat) %in% lung.samples,], ctrpv1.pheno.data[ctrpv1.pheno.data$Sample %in% lung.samples,], ctrpv1.target.data, genes = genes, drug)
+
+## Fig 2A NRAS TES-A selumetinib
+## Confirmed the number of mutant cell lines was the same (10) as in the reported enrichment results
+## and that the number of samples was similar (117 here vs 112 reported)
+## more v10.A1.enrichment_analysis.txt  | grep -E 'cell_line|TES-A' | grep -E 'cell_line|ALL_CCL' | grep -E 'cell_line|EXCLUDE_NON' | grep -E 'cell_line|selumetinib' | grep -E 'cell_line|NRAS' | grep -v CNV
+## cell_line_subset	cell_line_exclusion	feature_dataset	cpd_name	enriched_cell_line_feature	number_of_cell_lines	number_of_mutant_cell_lines	enrichment_direction	enrichment_p_value	chi_squared_p_value	squared_max_p_value	log_p_value_score	fdr_q_value	log_q_value_score
+## ALL_CCL_LINEAGES	EXCLUDE_NONE	TES-A	selumetinib	NRAS	112	10	sensitive	0.0022838	0.0071124	5.06E-05	-4.296	0.0057891	-2.237
+genes <- c("NRAS", "KRAS", "MAP2K1", "MAP2K2")
+drug <- "selumetinib"
+do.drug.gene(ctrpv1_aucs, ctrpv1.tesa, ctrpv1.tesa.mat, ctrpv1.pheno.data, ctrpv1.target.data, genes = genes, drug, postfix = "tesa")
+
+## Fig 4A CTNNB1 Oncomap vs navitoclax (targets: BCL2, BCL2L1, BCL2L2)
+genes <- c("CTNNB1", "BCL2", "BCL2L1", "BCL2L2")
+drug <- "navitoclax"
+do.drug.gene(ctrpv1_aucs, ctrpv1.oncomap, ctrpv1.oncomap.mat, ctrpv1.pheno.data, ctrpv1.target.data, genes = genes, drug, postfix = "onco")
+
+## Fig 4A AXIN1 TES-A vs navitoclax
+genes <- c("AXIN1", "BCL2", "BCL2L1", "BCL2L2")
+drug <- "navitoclax"
+do.drug.gene(ctrpv1_aucs, ctrpv1.tesa, ctrpv1.tesa.mat, ctrpv1.pheno.data, ctrpv1.target.data, genes = genes, drug, postfix = "tesa")
+
+## Fig 4A CSNK1A1 TES-CNV vs navitoclax -- don't know what TES-CNV is.  So skipping
+
+
+## AUC file has experiment_id that needs to matched to cell_id and to cell name
+
+file <- "v20.meta.per_experiment.txt"
+ctrpv2_expts <- read.table(file, sep="\t", header=TRUE)
+ctrpv2_expts <- ctrpv2_expts[,c("experiment_id", "master_ccl_id")]
+
+file <- "v20.meta.per_cell_line.txt"
+ctrpv2_ccls <- read.table(file, sep="\t", header=TRUE)
+ctrpv2_ccls <- ctrpv2_ccls[,c("master_ccl_id", "ccl_name")]
+
+ctrpv2_ccls <- merge(ctrpv2_ccls, ctrpv2_expts, all=FALSE)
+
+ctrpv2_aucs <- merge(ctrpv2_aucs, ctrpv2_ccls, all=FALSE)
+
+
 ## Perform bootstrap sampling
 
 ## y = TRUE --> return response
