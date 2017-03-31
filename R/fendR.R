@@ -71,14 +71,13 @@ originalSparseResponseMatrix <- function(object, phenotype=c(), ...){
 #' @description return the original feature data in a response matrix for modeling
 #' @param object a fendrObject
 #' @keywords
-#' @import dplyr tidyr
 #' @export
 #' @return A response matrix to use for modeling with the formula 'Response~.'
 originalResponseMatrix.fendR <- function(object,phenotype=c()){
   if(length(phenotype)==0)
     phenotype <- unique(object$sampleOutcomeData$Phenotype)
 
-  fres<-inner_join(object$featureData,subset(object$sampleOutcomeData,Phenotype%in%phenotype),by='Sample')%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
+  fres<-dplyr::inner_join(object$featureData,subset(object$sampleOutcomeData,Phenotype%in%phenotype),by='Sample')%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
   dres<-tidyr::spread(fres,Gene,value=Value,drop=TRUE)
 
   return(dres)

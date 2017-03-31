@@ -2,7 +2,7 @@
 % Please edit documentation in R/n3FendR.R
 \name{originalResponseMatrix.n3FendR}
 \alias{originalResponseMatrix.n3FendR}
-\title{Return feature matrix, consisting of the original features and the associated responses in column Response.}
+\title{Return feature matrix, consisting of the original features, and the associated responses in column Response.}
 \usage{
 \method{originalResponseMatrix}{n3FendR}(object, phenotype = c(),
   limit.to.engineered.genes = FALSE)

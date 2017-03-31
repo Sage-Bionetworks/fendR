@@ -17,9 +17,11 @@ crossValidationCompare(fendRObj, modelCall = "lm", modelArgs = list(),
 \item{testPheno}{a list of phenotypes to limit the test}
 
 \item{sampleIndependent}{set to TRUE if your engineered features are independent of samples}
+
+\item{numCores}{number of cores to use, defaults to 1}
 }
 \value{
-Not sure yet...
+Data frame with 5 columsn: Phenotype, Sample, TrueValue,OriginalPred,EngineeredPred
 }
 \description{
 Use leave-one-out cross validation to assess the feature mapping and
