@@ -106,7 +106,10 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     #eventually do something more complicated
     if(is.na(testDrugs)||length(testDrugs>1)){
       gene.var<-newdf%>%dplyr::group_by(Gene)%>%dplyr::summarize(Variance=var(NetworkValue))
-      nzvars<-which(gene.var$Variance>0)
+      var.thresh=0.99
+      nzvars<-which(gene.var$Variance>quantile(gene.var$Variance,na.rm=T,var.thresh)[[paste(var.thresh*100,'%',sep='')]])
+
+      #nzvars<-which(gene.var$Variance>0)
       genes<-gene.var$Gene[nzvars]
       print(paste('Keeping',length(nzvars),'gene values that change across drug treatments out of',length(gene.var$Gene)))
     }else{
@@ -144,10 +147,13 @@ engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
  # rownames(res)<-res$SamplePheno
   res<-res[,-which(colnames(res)%in%c('Gene','SamplePheno'))]
 
-  zvar<-which(apply(res,2,var)==0)
+  avar<-apply(res,2,var)
+  #var.thresh=0.99
+ # zvar<-which(avar<quantile(avar,na.rm=T,var.thresh)[[paste(var.thresh*100,'%',sep='')]])#
+  zvar<-which(avar==0)
 
   if(length(zvar)>0){
-  print(paste('Removing',length(zvar),'un-changing features from matrix'))
+  print(paste('Removing',length(zvar),'features from matrix out of',length(avar)))
   res<-res[,-zvar]
   }
   res
