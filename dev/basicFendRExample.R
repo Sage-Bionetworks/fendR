@@ -36,18 +36,21 @@ testDrugs<-sample(testDrugs,3)
 
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
-fObj <- createNewFeaturesFromNetwork(fObj,testDrugs,numCores=20)
+fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
 
-#origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
-#engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
+origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
+engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
+
+
+#let's plot the per-drug variance of each of the genes to see if we could rationalize a cut-off of genes that are relatively uninformative
 
 
 ##we can add some generic fendR methods as well, such as plotting, statistics, loo, etc.
-#res<-crossValidationCompare(fObj,
+res<-crossValidationCompare(fObj,
   modelCall='glm',
   modelArgs=list(),
   testPheno=testDrugs,
 
   sampleIndependent=TRUE)
 plotModelResults(res)
-write.table('fendRtestResults.tsv',sep='\t',header=T,row.names=F)
+#write.table('fendRtestResults.tsv',sep='\t',header=T,row.names=F)
