@@ -32,7 +32,6 @@ calculate.roc <- function(response, predicted.response, ...) {
 #' @param modelCall A String to call the model and predict
 #' @param modelArgs a list of extra arguments to pass into do.call with model
 #' @param testPheno a list of phenotypes to limit the test
-#' @param numCores number of cores to use, defaults to 1
 #' @param sampleIndependent set to TRUE if your engineered features are independent of samples
 #' @keywords INCOMPLETE
 #' @export
@@ -41,7 +40,7 @@ crossValidationCompare <- function(fendRObj,
   modelCall='lm',
   modelArgs=list(),
   testPheno=c(),
-
+  k=10,
   sampleIndependent=TRUE){
 
   ##get a list of all samples
@@ -62,26 +61,27 @@ crossValidationCompare <- function(fendRObj,
   engMatrix<-engineeredResponseMatrix(fendRObj)
 
 
-  doMC::registerDoMC()
+  #doMC::registerDoMC()
   #for each sample, leave one out
-  vals<-plyr::llply(all.samps,function(x){
+  kfold<-split(all.samps,sample(1:k,size=length(all.samps),replace=TRUE))
+  vals<-plyr::llply(kfold,function(x){
 
     #subset out that data and re-assign original object
-    test.df<-dplyr::filter(fendRObj$sampleOutcomeData,Sample==x)%>%filter(Phenotype%in%testPheno)
+    test.df<-dplyr::filter(fendRObj$sampleOutcomeData,Sample%in%x)%>%filter(Phenotype%in%testPheno)
     test.data<-test.df$Response
     names(test.data)<-test.df$Phenotype
-    orig.test.features<-subset(fendRObj$featureData,Sample==x)
+    orig.test.features<-subset(fendRObj$featureData,Sample%in%x)
     #artificially expand to do acast
     otf<-orig.test.features$Value
     names(otf)<-orig.test.features$Gene
 
-    aug.test.features<-subset(fendRObj$remappedFeatures,Sample==x)
+    aug.test.features<-subset(fendRObj$remappedFeatures,Sample%in%x)
     atf<-reshape2::acast(select(aug.test.features,Phenotype,Gene,Value),Phenotype~Gene)
 
 
     #build original and updated model
     orig.pred<-sapply(testPheno,function(p){
-      mod.dat<-dplyr::filter(origMatrix,Sample!=x)%>%filter(Phenotype==p)%>%dplyr::select(-Phenotype,-Sample)
+      mod.dat<-dplyr::filter(origMatrix,!Sample%in%x)%>%filter(Phenotype==p)%>%dplyr::select(-Phenotype,-Sample)
       orig.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
       predict(orig.mod,newdata=data.frame(t(otf)))[[1]]
     })
@@ -108,11 +108,14 @@ crossValidationCompare <- function(fendRObj,
 #' @description plots results of LOO CV code above
 #' @param modelingDataFrame output of \code{crossValidationCompare}
 #' @keywords
+#' @import ggplot2 tidyr
 #' @export
 #' @return image
 
 plotModelResults <- function(modelingDataFrame){
   ##data frame is result from LOO
+  require(tidyr)
+  require(ggplot2)
   origCor=cor(modelingDataFrame$OriginalPred,modelingDataFrame$TrueValue,use='pairwise.complete.obs')
   engCor=cor(modelingDataFrame$EngineeredPred,modelingDataFrame$TrueValue,use='pairwise.complete.obs')
 
