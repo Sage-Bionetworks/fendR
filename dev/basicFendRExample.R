@@ -19,8 +19,12 @@ target.data<-loadTargetData(target.file)
 
 network.file<-'https://github.com/fraenkel-lab/OmicsIntegrator/raw/master/data/iref_mitab_miscore_2013_08_12_interactome.txt'
 
+library(parallel)
+nodes <- detectCores()
+cl <- makeCluster(nodes)
+setDefaultCluster(cl)
 
-
+doMC::registerDoMC(cores=30)
 
 #create new basicFendR class with data - both inheriting class info and additional
 fObj <- basicFendR(networkFile=network.file,
@@ -32,18 +36,19 @@ fObj <- basicFendR(networkFile=network.file,
 #sampling 10 drugs
 testDrugs=unique(fObj$phenoFeatureData$Phenotype)
 
-testDrugs<-sample(testDrugs,3)
+testDrugs<-sample(testDrugs,20)
 
 #these are the four functions we need
 fObj<-loadNetwork(fObj)
 fObj <- createNewFeaturesFromNetwork(fObj,testDrugs)
 
-origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
-engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
+#origMatrix<-originalResponseMatrix(fObj,phenotype=testDrugs)
+#engMatrix<-engineeredResponseMatrix(fObj,phenotype=testDrugs)
 
 
 #let's plot the per-drug variance of each of the genes to see if we could rationalize a cut-off of genes that are relatively uninformative
 
+#doMC::registerDoMC(cores=30)
 
 ##we can add some generic fendR methods as well, such as plotting, statistics, loo, etc.
 res<-crossValidationCompare(fObj,

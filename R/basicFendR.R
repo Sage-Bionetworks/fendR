@@ -47,7 +47,7 @@ loadNetwork.basicFendR <- function(fObj){
 #' @export
 #' @return list of gene features for each phenotype/drug response
 createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
-    doMC::registerDoMC()
+  #  doMC::registerDoMC()
 
     ##figure out which phenotypes have both feature data and outcome data
     phenos<-intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
