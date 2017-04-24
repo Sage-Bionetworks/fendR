@@ -75,4 +75,12 @@ compareModelToRandom <-function(fendRObj,testPheno){
 
 }
 
-
+#' Assess fendR using varianceComponent estimation
+#' @description Compute an estimate of variance explained by a given feature set for an outcome of choice
+#' @param fendRObj The object class
+#' @param testPheno a list of phenotypes to limit the test
+#' @keywords INCOMPLETE
+#' @export
+#' @return score ratio of variance explained to observed variance for feature set
+computeVarianceExplained <-function(fendRObj,testPheno){
+}
