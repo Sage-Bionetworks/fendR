@@ -12,11 +12,37 @@
 #' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
 #' @export
 #' @return a fendR object
-fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData){
+fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,targetGenes=NULL){
+
+  ##reduce genes by targetGenes if possible  - moved this from n3 fendR
+  full.gene.set<-unique(featureData$Gene)
+  num.genes.in.full.feature.space <- length(full.gene.set)
+  reduced.gene.set<-full.gene.set
+  if(!is.na(targetGenes) && !is.null(targetGenes)) {
+    if(!any(targetGenes %in% full.gene.set)) {
+      stop("None of target genes are in the featureData")
+    }
+    reduced.gene.set <- full.gene.set[full.gene.set %in% target.genes]
+    cat(paste0("Reducing feature space from ", num.genes.in.full.feature.space, " to ", length(reduced.gene.set), "\n"))
+  } else {
+    cat(paste0("Using all ", num.genes.in.full.feature.space, " genes in featureData.\n"))
+    cat("Not sparsifying data or network\n")
+  }
+
+
+  ##remove phenotype data for which there are not two tests of data
+  ##figure out which phenotypes have both feature data and outcome data
+  phenos<-intersect(sampleOutcomeData$Phenotype,phenoFeatureData$Phenotype)
+  all.phenos<-union(sampleOutcomeData$Phenotype,phenoFeatureData$Phenotype)
+  print(paste("Found",length(phenos),'phenotypes that have feature data and outcome data out of',length(all.phenos)))
+
+
+  ##now do some reduction
   me <- list(network=networkFile,
-    featureData=featureData,
-    phenoFeatureData=phenoFeatureData,
-    sampleOutcomeData=sampleOutcomeData,
+    featureData=subset(featureData,Gene%in%reduced.gene.set),
+    phenoFeatureData=subset(phenoFeatureData,Phenotype%in%phenos),
+    sampleOutcomeData=subset(sampleOutcomeData,Phenotype%in%phenos),
+    targetGenes=reduced.gene.set,
     graph = NULL, #to be filled in using selectFeaturesFromNetwork function
     remappedFeatures=NULL # to be filled in using engineerFeaturesFromNetwork function
   )

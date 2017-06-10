@@ -5,7 +5,8 @@
 \title{An S3 class to represent a basic implementation of the fendR predictive
 network algorithm}
 \usage{
-basicFendR(networkFile, featureData, phenoFeatureData, sampleOutcomeData)
+basicFendR(networkFile, featureData, phenoFeatureData, sampleOutcomeData,
+  targetGenes)
 }
 \arguments{
 \item{featureData}{a data.frame that contains rows representing genes and columns representing samples}

@@ -43,8 +43,6 @@ crossValidationCompare <- function(fendRObj,
   k=10,
   sampleIndependent=TRUE){
 
-  ##get a list of all samples
-  all.samps<-intersect(fendRObj$sampleOutcomeData$Sample,fendRObj$featureData$Sample)
 
   if(length(testPheno)==0)
     testPheno <- unique(fendRObj$sampleOutcomeData$Phenotype)
@@ -58,12 +56,20 @@ crossValidationCompare <- function(fendRObj,
 
   ##for now we assume that all models are assume independence between samples AND Drugs
   origMatrix<-originalResponseMatrix(fendRObj)
+  print(paste("Dimensions of original matrix",paste(dim(origMatrix),collapse=',')))
   engMatrix<-engineeredResponseMatrix(fendRObj)
+  print(paste("Dimensions of engineered matrix",paste(dim(engMatrix),collapse=',')))
 
+  ##get a list of all samples
+
+  all.samps <- intersect(origMatrix$Sample,engMatrix$Sample)
+  testPheno<-testPheno[testPheno%in%fendRObj$phenoFeatureData$Phenotype]
 
   #doMC::registerDoMC()
   #for each sample, leave one out
-  kfold<-split(all.samps,sample(1:k,size=length(all.samps),replace=TRUE))
+  require(caret)
+  kfold<-sapply(caret::createFolds(all.samps,k=k),function(x) all.samps[x])
+#  kfold<-split(all.samps,base::sample(1:k,size=length(all.samps),replace=TRUE))
   vals<-plyr::llply(kfold,function(x){
 
     #subset out that data and re-assign original object
@@ -72,30 +78,42 @@ crossValidationCompare <- function(fendRObj,
     names(test.data)<-test.df$Phenotype
     orig.test.features<-subset(fendRObj$featureData,Sample%in%x)
     #artificially expand to do acast
-    otf<-orig.test.features$Value
-    names(otf)<-orig.test.features$Gene
 
+    otf<-reshape2::acast(orig.test.features,Sample~Gene)
     aug.test.features<-subset(fendRObj$remappedFeatures,Sample%in%x)
-    atf<-reshape2::acast(select(aug.test.features,Phenotype,Gene,Value),Phenotype~Gene)
 
-
-    #build original and updated model
-    orig.pred<-sapply(testPheno,function(p){
-      mod.dat<-dplyr::filter(origMatrix,!Sample%in%x)%>%filter(Phenotype==p)%>%dplyr::select(-Phenotype,-Sample)
+    #build original model
+    orig.pred<-data.frame(sapply(testPheno,function(p){
+      mod.dat<-dplyr::filter(origMatrix,!Sample%in%x)%>%dplyr::filter(Phenotype==p)%>%dplyr::select(-Phenotype)
+      rownames(mod.dat)<-mod.dat$Sample
+      mod.dat<-dplyr::select(mod.dat,-Sample)
       orig.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
-      predict(orig.mod,newdata=data.frame(t(otf)))[[1]]
-    })
+      predict(orig.mod,newdata=data.frame(otf))
+    }))
 
-    mod.dat<-dplyr::filter(engMatrix,Sample!=x)%>%dplyr::select(-Phenotype,-Sample)
-    eng.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
-    eng.pred<-predict(eng.mod,data.frame(atf))
+  orig.pred$Sample=rownames(orig.pred)
+  orig.df<-gather(orig.pred,"Phenotype","Response",1:(ncol(orig.pred)-1))
+  orig.df$PredType=rep("OriginalPrediction",nrow(orig.df))
+  ##build engineered model
+    eng.pred<-data.frame(sapply(testPheno,function(p){
+      mod.dat<-dplyr::filter(engMatrix,Sample!=x)%>%dplyr::filter(Phenotype==p)%>%dplyr::select(-Phenotype)
+      rownames(mod.dat)<-mod.dat$Sample
+      mod.dat<-dplyr::select(mod.dat,-Sample)
 
+      atf<-reshape2::acast(select(dplyr::filter(aug.test.features,Phenotype==p),Gene,Sample,Value),Sample~Gene,value.var='Value')
 
-      df<-data.frame(OriginalPred=orig.pred,
-          EngineeredPred=eng.pred,Phenotype=testPheno,
-          Sample=rep(x,length(testPheno)),TrueValue=test.data)
+      eng.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
+      predict(eng.mod,newdata=data.frame(atf))
 
-      df
+    }))
+
+    eng.pred$Sample=rownames(eng.pred)
+    eng.df<-gather(eng.pred,"Phenotype","Response",1:(ncol(eng.pred)-1))
+    eng.df$PredType=rep('EngineeredPrediction',nrow(eng.df))
+
+    test.df$PredType=rep('TrueValues',nrow(test.df))
+    full.df<-rbind(test.df,orig.df,eng.df)
+    full.df
       },.parallel = TRUE)
 
     all.res<-do.call('rbind',vals)
@@ -112,18 +130,36 @@ crossValidationCompare <- function(fendRObj,
 #' @export
 #' @return image
 
-plotModelResults <- function(modelingDataFrame){
+plotModelResults <- function(modelingDataFrame,prefix=''){
   ##data frame is result from LOO
   require(tidyr)
   require(ggplot2)
-  origCor=cor(modelingDataFrame$OriginalPred,modelingDataFrame$TrueValue,use='pairwise.complete.obs')
-  engCor=cor(modelingDataFrame$EngineeredPred,modelingDataFrame$TrueValue,use='pairwise.complete.obs')
+  res.df<-tidyr::spread(modelingDataFrame,PredType,Response)
 
-  byDrug<-modelingDataFrame%>%dplyr::group_by(Phenotype)%>%summarise(original=cor(OriginalPred,TrueValue,use='pairwise.complete.obs'),engineered=cor(EngineeredPred,TrueValue,use='pairwise.complete.obs'))
+  origCor=cor(res.df$OriginalPrediction,res.df$TrueValues,use='pairwise.complete.obs')
+  engCor=cor(res.df$EngineeredPrediction,res.df$TrueValues,use='pairwise.complete.obs')
 
-  corDf<-byDrug%>%tidyr::gather(Features,Correlation,2:3)
-  pdf('modelResults.pdf')
-  p<-  ggplot2::ggplot(corDf)+ggplot2::geom_point(ggplot2::aes(x=Phenotype,y=Correlation,col=Features))
+  byDrug<-res.df%>%dplyr::group_by(Phenotype)%>%summarise(original=cor(OriginalPrediction,TrueValues,use='pairwise.complete.obs'),engineered=cor(EngineeredPrediction,TrueValues,use='pairwise.complete.obs'))
+
+  bySample<-res.df%>%dplyr::group_by(Sample)%>%summarise(original=cor(OriginalPrediction,TrueValues,use='pairwise.complete.obs'),engineered=cor(EngineeredPrediction,TrueValues,use='pairwise.complete.obs'))
+
+  corDrugDf<-byDrug%>%tidyr::gather(Features,Correlation,2:3)
+  corSampDf<-bySample%>%tidyr::gather(Features,Correlation,2:3)
+  pdf(paste0(prefix,'modelResults.pdf',sep=''))
+  p<-  ggplot2::ggplot(corDrugDf)+ggplot2::geom_point(ggplot2::aes(x=Phenotype,y=Correlation,col=Features))+ggtitle('Correlation across samples by drug')+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+  print(p)
+
+  p<-  ggplot2::ggplot(corSampDf)+ggplot2::geom_point(ggplot2::aes(x=Sample,y=Correlation,col=Features))+ggtitle('Correlation across drugs by sample')+
+    theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank())
+  print(p)
+
+  ##now print the correlations themselves
+  p<-ggplot(data=res.df)+geom_point(aes(x=TrueValues,y=EngineeredPrediction,col=Phenotype))
+  print(p)
+  p<-ggplot(data=res.df)+geom_point(aes(x=TrueValues,y=OriginalPrediction,col=Phenotype))
   print(p)
   dev.off()
 
