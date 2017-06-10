@@ -4,7 +4,7 @@
 \alias{plotModelResults}
 \title{Visualirze fendR and modeling using cross validation}
 \usage{
-plotModelResults(modelingDataFrame)
+plotModelResults(modelingDataFrame, prefix = "")
 }
 \arguments{
 \item{modelingDataFrame}{output of \code{crossValidationCompare}}

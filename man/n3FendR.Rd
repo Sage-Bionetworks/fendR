@@ -5,7 +5,7 @@
 \title{An S3 class to represent the nearest-neighbor network implementation of the fendR predictive
 network algorithm.}
 \usage{
-n3FendR(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes,
+n3FendR(network, featureData, phenoFeatureData, sampleOutcomeData, targetGenes,
   testDrugs = NA)
 }
 \arguments{
@@ -17,9 +17,9 @@ n3FendR(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes,
 
 \item{sampleOutcomeData}{a data.frame representing at least one column of phenotype and rows representing samples}
 
-\item{target.genes}{a vector of target gene names (a subset of those in featureData) that will be used to sparsify the network}
-
 \item{testDrugs}{a vector of drug names to be used to subset the data (e.g., for debugging/efficiency purposes)}
+
+\item{target.genes}{a vector of target gene names (a subset of those in featureData) that will be used to sparsify the network}
 }
 \value{
 n3FendR object

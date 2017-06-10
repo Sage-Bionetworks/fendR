@@ -18,7 +18,7 @@
 #' @inheritParams fendR
 #' @export
 #' @return n3FendR object
-n3FendR <- function(network, featureData, phenoFeatureData, sampleOutcomeData, target.genes, testDrugs = NA) {
+n3FendR <- function(network, featureData, phenoFeatureData, sampleOutcomeData, targetGenes, testDrugs = NA) {
 
   phenos <- intersect(sampleOutcomeData$Phenotype, phenoFeatureData$Phenotype)
   if(!is.na(testDrugs) && any(testDrugs %in% phenos)) {
@@ -28,28 +28,35 @@ n3FendR <- function(network, featureData, phenoFeatureData, sampleOutcomeData, t
   sampleOutcomeData <- subset(sampleOutcomeData, Phenotype %in% phenos)
   phenoFeatureData <- subset(phenoFeatureData, Phenotype %in% phenos)
 
-  me <-fendR(network, featureData, phenoFeatureData, sampleOutcomeData)
-  cls.me <- class(me)
-
   ## Get the genes in the network
+  ##UPdated by sara: added clause to separate out network reduction vs. feature reduction
   all.network.genes <- names(feather_metadata(network)$types)
 
-##  full.gene.set <- unique(intersect(featureData$Gene, intersect(phenoFeatureData$Gene, all.network.genes)))
-  full.gene.set <- unique(intersect(featureData$Gene, all.network.genes))
-  num.genes.in.full.feature.space <- length(full.gene.set)
-  reduced.gene.set <- full.gene.set
-  if(!is.na(target.genes) && !is.null(target.genes)) {
-    if(!any(target.genes %in% full.gene.set)) {
-      stop("None of target genes are in the featureData")
+  full.gene.set <- unique(intersect(featureData$Gene, intersect(phenoFeatureData$Gene, all.network.genes)))
+
+  reduced.targetGenes<-targetGenes
+  reduced.gene.set<-full.gene.set
+  if(!is.na(targetGenes) && !is.null(targetGenes)) {
+    if(!any(targetGenes %in% all.network.genes)) {
+      stop("None of target genes are in the Network")
     }
-    reduced.gene.set <- full.gene.set[full.gene.set %in% target.genes]
-    cat(paste0("Reducing feature space from ", num.genes.in.full.feature.space, " to ", length(reduced.gene.set), "\n"))
+    reduced.targetGenes <- targetGenes[targetGenes%in% all.network.genes]
+    reduced.gene.set<-full.gene.set[full.gene.set %in% targetGenes]
+
+    cat(paste0("Reducing target genes from ", length(targetGenes), " to ", length(reducedTargetGEnes), "\n"))
   } else {
-    cat(paste0("Using all ", num.genes.in.full.feature.space, " genes in featureData.\n"))
-    cat("Not sparsifying data or network\n")
+    cat(paste0("Using all ", length(targetGenes), " target genes that are in network.\n"))
+    cat("Not sparsifying data from network\n")
   }
 
-  me <- append(me, list(target.genes = target.genes, reduced.gene.set = reduced.gene.set, all.network.genes = all.network.genes))
+#  full.gene.set <- unique(intersect(featureData$Gene, all.network.genes))
+
+  me <-fendR(network, featureData, phenoFeatureData, sampleOutcomeData,targetGenes=reduced.targetGenes)
+  cls.me <- class(me)
+
+  #full.gene.set <- unique(intersect(featureData$Gene, all.network.genes)
+
+  me <- append(me, list(reduced.gene.set = reduced.gene.set, all.network.genes = all.network.genes))
   class(me) <- c("n3FendR", cls.me)
   return(me)
 }
@@ -108,13 +115,13 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
     ## might happen if mutations are discovered using targeted sequencing)
     ## then add them
     all.anchors <- unique(unlist(ldply(phenos, .parallel = TRUE, .fun = function(pheno) {
-      
+
       ## For each gene target of that phenotype/drug
       anchors <- as.character(subset(phenoFeatureData, Phenotype == pheno)$Gene)
       anchors
     })))
     all.anchors <- all.anchors[all.anchors %in% object$all.network.genes]
-    
+
     if(num.degrees == 1 ) {
       for(anchor in all.anchors) {
         if(!(anchor %in% colnames(m))) {
@@ -123,10 +130,10 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
         }
       }
     }
-    
+
     features <- colnames(m)
-    
-    ## For each anchor (e.g., drug target) a of phenotype (e.g., drug) p, define a feature matrix m^a 
+
+    ## For each anchor (e.g., drug target) a of phenotype (e.g., drug) p, define a feature matrix m^a
     ## by propagating mutations in the original matrix m to nearest neighbors.  The network induced by anchor a is
     ## represented by the edge list e^a_gg', where e^a_gg' > 0 only if g and/or g' = a and/or g = g'
     ## The feature matrix m^d _for the phenotype_ is then defined over all anchors a for that phenotype
@@ -147,7 +154,7 @@ createNewFeaturesFromNetwork.n3FendR <- function(object, testDrugs = NA, num.deg
       ## For each gene target of that phenotype/drug
       anchors <- as.character(subset(phenoFeatureData, Phenotype == pheno)$Gene)
       anchors <- anchors[anchors %in% object$all.network.genes]
-      
+
       cat(paste0("Performing nearest neighbor proportion for phenotype ", pheno, " with target(s): ", paste(anchors, collapse=","), "\n"))
 
       ## For each gene target/anchor of that phenotype/drug, propagate mutation to nearest neighbors
