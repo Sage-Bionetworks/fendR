@@ -22,7 +22,7 @@ fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,ta
     if(!any(targetGenes %in% full.gene.set)) {
       stop("None of target genes are in the featureData")
     }
-    reduced.gene.set <- full.gene.set[full.gene.set %in% target.genes]
+    reduced.gene.set <- full.gene.set[full.gene.set %in% targetGenes]
     cat(paste0("Reducing feature space from ", num.genes.in.full.feature.space, " to ", length(reduced.gene.set), "\n"))
   } else {
     cat(paste0("Using all ", num.genes.in.full.feature.space, " genes in featureData.\n"))

@@ -139,9 +139,10 @@ plotModelResults <- function(modelingDataFrame,prefix=''){
   origCor=cor(res.df$OriginalPrediction,res.df$TrueValues,use='pairwise.complete.obs')
   engCor=cor(res.df$EngineeredPrediction,res.df$TrueValues,use='pairwise.complete.obs')
 
-  byDrug<-res.df%>%dplyr::group_by(Phenotype)%>%summarise(original=cor(OriginalPrediction,TrueValues,use='pairwise.complete.obs'),engineered=cor(EngineeredPrediction,TrueValues,use='pairwise.complete.obs'))
+  gbd<-dplyr::group_by(res.df,Phenotype)
+  byDrug<-dplyr::summarise(gbd,original=cor(OriginalPrediction,TrueValues,use='pairwise.complete.obs'),engineered=cor(EngineeredPrediction,TrueValues,use='pairwise.complete.obs'))
 
-  bySample<-res.df%>%dplyr::group_by(Sample)%>%summarise(original=cor(OriginalPrediction,TrueValues,use='pairwise.complete.obs'),engineered=cor(EngineeredPrediction,TrueValues,use='pairwise.complete.obs'))
+  bySample<-res.df%>%dplyr::group_by(Sample)%>%dplyr::summarise(original=cor(OriginalPrediction,TrueValues,use='pairwise.complete.obs'),engineered=cor(EngineeredPrediction,TrueValues,use='pairwise.complete.obs'))
 
   corDrugDf<-byDrug%>%tidyr::gather(Features,Correlation,2:3)
   corSampDf<-bySample%>%tidyr::gather(Features,Correlation,2:3)

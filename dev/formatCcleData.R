@@ -63,8 +63,13 @@ if(length(nans)>0)
   ddat<-ddat[,-nans]
 ddat<-ddat[,-1]
 ddat<-data.frame(t(ddat))
-rfname='../inst/CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv'
-write.table(ddat,rfname,row.names=T,col.names=T,sep='\t',quote=F)
+#gz<-gzfile('../inst/SANGER_brainarray_rma_expr.tsv.gz','w')
+#write.table(round(full.ids,digits=4),gz,quote=F,sep='\t')
+#close(gz)
+rfname='../inst/CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv.gz'
+gz<-gzfile(rfname,'w')
+write.table(ddat,gz,row.names=T,col.names=T,sep='\t',quote=F)
+close(gz)
 
 ##now we can re-rupload to new synapse project
 this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/dev/testDataPrep/formatCcleData.R'
