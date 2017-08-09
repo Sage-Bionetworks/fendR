@@ -63,9 +63,7 @@ if(length(nans)>0)
   ddat<-ddat[,-nans]
 ddat<-ddat[,-1]
 ddat<-data.frame(t(ddat))
-#gz<-gzfile('../inst/SANGER_brainarray_rma_expr.tsv.gz','w')
-#write.table(round(full.ids,digits=4),gz,quote=F,sep='\t')
-#close(gz)
+colnames(ddat)<-sapply(colnames(ddat),function(x) unlist(strsplit(x,split='_'))[1])
 rfname='../inst/CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv.gz'
 gz<-gzfile(rfname,'w')
 write.table(ddat,gz,row.names=T,col.names=T,sep='\t',quote=F)

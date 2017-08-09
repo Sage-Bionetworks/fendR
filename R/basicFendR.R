@@ -12,8 +12,8 @@
 #' @inheritParams fendR
 #' @export
 #' @return basicFendR object
-basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes){
- me <-fendR(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes)
+basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes,geneNorm,responseNorm){
+ me <-fendR(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes,geneNorm,responseNorm)
  class(me) <- append(class(me),'basicFendR')
  return(me)
 }
@@ -48,8 +48,6 @@ loadNetwork.basicFendR <- function(fObj){
 #' @return list of gene features for each phenotype/drug response
 createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
   #  doMC::registerDoMC()
-
-
 
     phenos<-intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
 
@@ -145,7 +143,9 @@ engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
 
  # rownames(res)<-res$SamplePheno
   res<-res[,-which(colnames(res)%in%c('Gene','SamplePheno'))]
-  res<-res[-which(is.na(res$Response)),]
+  nas<-which(is.na(res$Response))
+  if(length(nas)>0)
+    res<-res[-nas,]
  #  avar<-apply(res,2,var)
  #  #var.thresh=0.99
  # # zvar<-which(avar<quantile(avar,na.rm=T,var.thresh)[[paste(var.thresh*100,'%',sep='')]])#

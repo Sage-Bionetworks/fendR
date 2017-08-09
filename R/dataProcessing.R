@@ -20,7 +20,13 @@ loadSampleData <- function(fname){
   else
     tab<-read.table(fname,stringsAsFactors =FALSE,check.names=F)
   tab$Gene<-rownames(tab)
-  res<-tidyr::gather(tab,"Sample","Value",1:(ncol(tab)-1))
+  res<-NULL
+  try(
+    res<-tidyr::gather(data.frame(tab,check.names=F),"Sample","Value",1:(ncol(tab)-1))
+  )
+  if(is.null(res))
+    res<-tidyr::gather(data.frame(tab,check.names=T),"Sample","Value",1:(ncol(tab)-1))
+
   return(res)
 }
 
@@ -33,7 +39,7 @@ loadSampleData <- function(fname){
 #' @examples
 #' @return tidied data frame with columns 'Sample','Phenotype','Response'
 loadPhenotypeData <- function(fname){
-  tab<-read.table(fname,sep ='\t')
+  tab<-read.table(fname,sep ='\t',check.names=F)
   tab$Sample<-rownames(tab)
   res<-tidyr::gather(tab,"Phenotype","Response",1:(ncol(tab)-1))
   return(res)
@@ -48,18 +54,13 @@ loadPhenotypeData <- function(fname){
 #' @examples
 #' @return Data frame with at least 2 column
 loadTargetData <- function(fname){
-  tab<-read.table(fname,header=T,sep='\t',stringsAsFactors =FALSE)
+  tab<-read.table(fname,header=T,sep='\t',stringsAsFactors =FALSE,check.names=F)
   if(ncol(tab)==2)
     colnames(tab)<-c("Phenotype","Gene")
   else
     tab<-tab%>%select(Phenotype,Gene)
   tab
 }
-
-
-
-
-
 
 
 
@@ -96,6 +97,23 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
   if(is.null(outPath)){outPath = dirname(elPath)}
   print(paste("writing out to", outPath))
   feather::write_feather(as.data.frame(el), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
+}
+
+#' drugNameMapping
+#'
+#' \code{drugNameMapping} collects information from the CCLE, SANGER and NTAP datasets to create a table that maps one drug to the others
+#' @param
+#' @param
+#' @export
+#' @return a data frame with each drug and its aliass on each row
+drugNameMapping <- function(){}
+
+#' cellLineMapping
+#'
+#' \code{cellLineMapping} collects information from CCLE and SANGER datasets to ensure to create a table that maps cell lines from one to another
+#'
+cellLineMapping <-function(){
+
 }
 
 #' translateMatrixIdentifiers

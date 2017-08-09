@@ -1,5 +1,4 @@
-Sample Name	COSMIC_ID	Cancer Type
-(matching TCGA label)	CCLE name
+Sample Name	COSMIC_ID	Cancer Type (matching TCGA label)	CCLE name
 A253	906794	NA	A253_SALIVARY_GLAND
 BB30-HNC	753531	HNSC	NA
 BB49-HNC	753532	HNSC	NA

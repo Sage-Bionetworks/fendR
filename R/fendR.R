@@ -12,7 +12,7 @@
 #' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
 #' @export
 #' @return a fendR object
-fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,targetGenes=NULL){
+fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,targetGenes=NULL,geneNorm=NA,responseNorm=NA){
 
   ##reduce genes by targetGenes if possible  - moved this from n3 fendR
   full.gene.set<-unique(featureData$Gene)
@@ -36,17 +36,33 @@ fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,ta
   all.phenos<-union(sampleOutcomeData$Phenotype,phenoFeatureData$Phenotype)
   print(paste("Found",length(phenos),'phenotypes that have feature data and outcome data out of',length(all.phenos)))
 
+  ##figure out which samples have associated response data
+  com.samps<-intersect(sampleOutcomeData$Sample,featureData$Sample)
+  all.samps<-union(sampleOutcomeData$Sample,featureData$Sample)
+  print(paste("Found",length(com.samps),'samples that have feature data and outcome data out of',length(all.samps)))
 
-  ##now do some reduction
+  #first create base object, then use helper functions to update
   me <- list(network=networkFile,
-    featureData=subset(featureData,Gene%in%reduced.gene.set),
-    phenoFeatureData=subset(phenoFeatureData,Phenotype%in%phenos),
-    sampleOutcomeData=subset(sampleOutcomeData,Phenotype%in%phenos),
+    featureData=featureData,
+    phenoFeatureData=phenoFeatureData,
+    sampleOutcomeData=sampleOutcomeData,
     targetGenes=reduced.gene.set,
     graph = NULL, #to be filled in using selectFeaturesFromNetwork function
     remappedFeatures=NULL # to be filled in using engineerFeaturesFromNetwork function
   )
   class(me) <- append(class(me),"fendR")
+
+  #first normalize if there are functions populated
+  if(!is.na(geneNorm))
+      me<-normalizeFeatureValues(me,geneNorm)
+  if(!is.na(responseNorm)){
+    me<-normalizeResponse(me,responseNorm)
+  }
+  ##now do some reduction
+  me<-reduceGenes(me,reduced.gene.set)
+  me<-reducePhenos(me,phenos)
+  me<-reduceSamples(me,com.samps)
+
   return(me)
 }
 
@@ -67,6 +83,30 @@ loadNetwork <- function(object){
 }
 
 
+#' Normalize response to drug
+#' @description Applies `normFunction` to each cell line across the drug screening library
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized response
+normalizeResponse <-function(object,normFunction){
+  UseMethod('normalizeResponse',object)
+
+}
+
+#' Normalize gene expressoin data
+#' @description Applies `normFunction` to each cell line across the features/genes
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized gene expression dataset
+normalizeFeatureValues <-function(object,normFunction){
+  UseMethod('normalizeFeatureValues',object)
+
+}
+
 #' Engineer Features from Network
 #' @description Takes the igraph populated by \code{loadNetwork}
 #' and propagates scores to remapped features
@@ -78,6 +118,40 @@ createNewFeaturesFromNetwork<-function(object, ...){
   UseMethod('createNewFeaturesFromNetwork',object)
 }
 
+#'
+#'@export
+reduceGenes <-function(object,gene.list){
+  UseMethod('reduceGenes',object)
+}
+
+#' Reduce model to only consider a subset of genes
+#' @export
+reduceGenes.fendR<-function(object,gene.list){
+  object$featureData=subset(object$featureData,Gene%in%gene.list)
+  if(!is.null(object$remappedFeatures))
+    object$remappedFeatures<-subset(object$remappedFeatures,Gene%in%gene.list)
+  return(object)
+}
+
+reduceSamples<-function(object,samp.list){
+  UseMethod("reduceSamples",object)
+}
+#' Reduce mode to only consider a set of samples
+reduceSamples.fendR <- function(object,samp.list){
+  object$featureData=subset(object$featureData,Sample%in%samp.list)
+  object$sampleOutcomeData=subset(object$sampleOutcomeData,Sample%in%samp.list)
+  return(object)
+}
+
+reducePhenos <-function(object,phenos){
+  UseMethod('reducePhenos',object)
+}
+#' Reduce model to only consider a set of phenotypes
+reducePhenos.fendR <-function(object,phenos){
+  object$sampleOutcomeData=subset(object$sampleOutcomeData,Phenotype%in%phenos)
+  object$phenoFeatureData=subset(object$phenoFeatureData,Phenotype%in%phenos)
+  return(object)
+}
 
 #' Get model-ready matrix from original features
 #' @description return the original feature data in a response matrix for modeling
@@ -104,9 +178,43 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
     phenotype <- unique(object$sampleOutcomeData$Phenotype)
 
   fres<-dplyr::inner_join(object$featureData,subset(object$sampleOutcomeData,Phenotype%in%phenotype),by='Sample')%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
-  dres<-tidyr::spread(fres,Gene,value=Value,drop=TRUE)
+  dres<-tidyr::spread(unique(fres),Gene,value=Value,drop=TRUE)
 
   return(dres)
+
+}
+
+
+#' Normalize response to drug
+#' @description Applies `normFunction` to each cell line across the drug screening library
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized response
+normalizeResponse.fendR <-function(object,normFunction){
+
+  updated.data<-group_by(object$sampleOutcomeData,Sample)%>%mutate(normResponse=normFunction(Response))
+  updated.data<-data.frame(updated.data)%>%select(-Response)%>%select(Sample,Phenotype,Response=normResponse)
+
+  object$sampleOutcomeData <-updated.data
+  object
+}
+
+#' Normalize gene expressoin data
+#' @description Applies `normFunction` to each cell line across the features/genes
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized gene expression dataset
+normalizeFeatureValues.fendR <-function(object,normFunction){
+
+  updated.data<-group_by(object$featureData,Sample)%>%mutate(normValue=normFunction(Value))
+  updated.data<-data.frame(updated.data)%>%select(-Value)%>%select(Gene,Sample,Value=normValue)
+
+  object$featureData <-updated.data
+  object
 
 }
 
