@@ -183,7 +183,83 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
   return(dres)
 
 }
+#' Allows for prediction from one fendR object to another
+#' @description Evaluate how well one fendRized dataset predicts another
+#' @param object a fendrObject
+#' @keywords
+#' @export
+#' @return A response matrix to use for modeling with the formula 'Response~.'
+#can this function be rolled into the base package somehow?
+predict.fendR<-function(fObj,otherObj,modelCall='lm',
+  modelArgs=c(),
+  numDrugs=10){
 
+  overlappingDrugs<-intersect(otherObj$sampleOutcomeData$Phenotype,fObj$sampleOutcomeData$Phenotype)
+  print(paste('Predicting response of',length(overlappingDrugs),'in common between two sets'))
+
+  overlappingDrugs<-sample(overlappingDrugs,numDrugs)
+  print(paste('selecting',length(overlappingDrugs),'of them'))
+
+  #renormalize gene data, response data
+  fObj <- loadNetwork(fObj) ###only need to load graph once
+  fObj<-createNewFeaturesFromNetwork(fObj,overlappingDrugs)
+
+  otherObj <- loadNetwork(otherObj) ###only need to load graph once
+  otherObj<-createNewFeaturesFromNetwork(otherObj,overlappingDrugs)
+
+  common.genes<-intersect(fObj$targetGenes,otherObj$targetGenes)
+
+  fObj<-reduceGenes(fObj,common.genes)
+  otherObj<-reduceGenes(otherObj,common.genes)
+
+  #build train dataset from original object
+  origMatrix<-originalResponseMatrix(fObj)
+  print(paste("Dimensions of original matrix",paste(dim(origMatrix),collapse=',')))
+
+  engMatrix<-engineeredResponseMatrix(fObj)
+  print(paste("Dimensions of engineered matrix",paste(dim(engMatrix),collapse=',')))
+
+  ##need to loop through each phenotype for original matrix,
+  orig.pred<-data.frame(sapply(overlappingDrugs,function(p){
+    mod.dat<-dplyr::filter(origMatrix,Phenotype==p)%>%dplyr::select(-Phenotype)
+    rownames(mod.dat)<-mod.dat$Sample
+    mod.dat<-data.frame(dplyr::select(mod.dat,-Sample),check.names=TRUE)
+    orig.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
+
+    orig.test.features<-otherObj$featureData
+    #artificially expand to do acast
+    otf<-reshape2::acast(orig.test.features,Sample~Gene)
+
+    predict(orig.mod,newdata=data.frame(otf,check.names=TRUE))
+  }))
+  colnames(orig.pred)<-overlappingDrugs
+  orig.pred$Sample=rownames(orig.pred)
+  orig.df<-gather(orig.pred,"Phenotype","Response",1:(ncol(orig.pred)-1))
+  orig.df$PredType=rep("OriginalPrediction",nrow(orig.df))
+
+
+  eng.pred<-data.frame(sapply(overlappingDrugs,function(p){
+    mod.dat<-dplyr::filter(engMatrix,Phenotype==p)%>%dplyr::select(-Phenotype)
+    rownames(mod.dat)<-mod.dat$Sample
+    mod.dat<-data.frame(dplyr::select(mod.dat,-Sample),check.names=TRUE)
+    aug.test.features<-otherObj$remappedFeatures
+    atf<-reshape2::acast(select(dplyr::filter(aug.test.features,Phenotype==p),Gene,Sample,Value),Sample~Gene,value.var='Value')
+
+    eng.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
+    predict(eng.mod,newdata=data.frame(atf,check.names=TRUE))
+
+  }))  #compare predictive results per drug
+  colnames(eng.pred)<-overlappingDrugs
+
+  eng.pred$Sample=rownames(eng.pred)
+  eng.df<-gather(eng.pred,"Phenotype","Response",1:(ncol(eng.pred)-1))
+  eng.df$PredType=rep('EngineeredPrediction',nrow(eng.df))
+
+  test.df<-dplyr::filter(otherObj$sampleOutcomeData,Phenotype%in%overlappingDrugs)
+  test.df$PredType=rep('TrueValues',nrow(test.df))
+  full.df<-rbind(test.df,orig.df,eng.df)
+  full.df
+}
 
 #' Normalize response to drug
 #' @description Applies `normFunction` to each cell line across the drug screening library
