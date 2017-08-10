@@ -124,6 +124,12 @@ reduceGenes <-function(object,gene.list){
   UseMethod('reduceGenes',object)
 }
 
+#'Predict from one object to another
+#'@export
+predict <-function(object,...){
+  UseMethod('predict',object)
+}
+
 #' Reduce model to only consider a subset of genes
 #' @export
 reduceGenes.fendR<-function(object,gene.list){
@@ -183,6 +189,7 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
   return(dres)
 
 }
+
 #' Allows for prediction from one fendR object to another
 #' @description Evaluate how well one fendRized dataset predicts another
 #' @param object a fendrObject
