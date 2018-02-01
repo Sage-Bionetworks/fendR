@@ -83,7 +83,7 @@ sangerPerf<-function(use.rna=FALSE){
 
   ##bracket phenotypes into groups of 10-20 to make it easier to compute?
   all.phenos<-unique(pheno.data$Phenotype)
-  require(caret)
+  #require(caret)
   testPhenos<-split(all.phenos,ceiling(seq_along(all.phenos)/(length(all.phenos)/15)))#
   #sapply(caret::createFolds(all.phenos,k=20),function(x) all.phenos[x])
   res.loop<-sapply(names(testPhenos),function(tp) {
@@ -101,7 +101,6 @@ sangerPerf<-function(use.rna=FALSE){
 }
 
 cclePerf<-function(use.rna=FALSE){
-
 
   network.file<-'https://github.com/fraenkel-lab/OmicsIntegrator/raw/master/data/iref_mitab_miscore_2013_08_12_interactome.txt'
 
@@ -134,7 +133,7 @@ cclePerf<-function(use.rna=FALSE){
 
   ##bracket phenotypes into groups of 10-20 to make it easier to compute?
   all.phenos<-unique(pheno.data$Phenotype)
-  require(caret)
+ # require(caret)
   testPhenos<-split(all.phenos,ceiling(seq_along(all.phenos)/(length(all.phenos)/15)))#
 
   #testPhenos<-sapply(caret::createFolds(all.phenos,k=20),function(x) all.phenos[x])
@@ -153,6 +152,6 @@ cclePerf<-function(use.rna=FALSE){
 
 }
 
-sangerPerf(use.rna=TRUE)
+#sangerPerf(use.rna=TRUE)
 #cclePerf(use.rna=TRUE)
 #ntapPerf(use.rna=TRUE)

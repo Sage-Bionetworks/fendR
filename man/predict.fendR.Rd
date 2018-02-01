@@ -5,13 +5,23 @@
 \title{Allows for prediction from one fendR object to another}
 \usage{
 \method{predict}{fendR}(fObj, otherObj, modelCall = "lm", modelArgs = c(),
-  numDrugs = 10)
+  predictArgs = c(), numDrugs = 10, extraLib = NA)
 }
 \arguments{
-\item{object}{a fendrObject}
+\item{modelCall}{A string representing the command to call to do the prediction}
+
+\item{modelArgs}{A list of arguments to pass into the modelCall}
+
+\item{numDrugs}{Number of drugs to limit to}
+
+\item{extraLib}{Name of library that requires loading}
+
+\item{object}{a fendrObject from which to build a model}
+
+\item{otherObject}{a second fendRObject to predict to}
 }
 \value{
-A response matrix to use for modeling with the formula 'Response~.'
+A data frame comparing the true values of the 'other' fendR object as well #' as the predicted models under a basic model and an engineered model
 }
 \description{
 Evaluate how well one fendRized dataset predicts another

@@ -8,6 +8,8 @@ plotModelResults(modelingDataFrame, prefix = "")
 }
 \arguments{
 \item{modelingDataFrame}{output of \code{crossValidationCompare}}
+
+\item{prefix}{String to append to output file}
 }
 \value{
 image

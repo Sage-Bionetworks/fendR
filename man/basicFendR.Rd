@@ -6,7 +6,7 @@
 network algorithm}
 \usage{
 basicFendR(networkFile, featureData, phenoFeatureData, sampleOutcomeData,
-  targetGenes, geneNorm, responseNorm)
+  targetGenes = NULL, geneNorm = NA, responseNorm = NA)
 }
 \arguments{
 \item{featureData}{a data.frame that contains rows representing genes and columns representing samples}

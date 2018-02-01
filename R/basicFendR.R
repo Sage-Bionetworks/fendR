@@ -12,7 +12,7 @@
 #' @inheritParams fendR
 #' @export
 #' @return basicFendR object
-basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes,geneNorm,responseNorm){
+basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes=NULL,geneNorm=NA,responseNorm=NA){
  me <-fendR(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes,geneNorm,responseNorm)
  class(me) <- append(class(me),'basicFendR')
  return(me)
@@ -31,6 +31,10 @@ basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeDat
 #' @return a fendR object with the graph parameter populated with an iGraph object where edge weights represent distance between nodes (smaller means *more* association)
 #' @examples
 loadNetwork.basicFendR <- function(fObj){
+  if(!is.null(fObj$graph)){
+    print("Network already loaded")
+    return(fObj)
+  }
   tab<-read.table(fObj$network,stringsAsFactors =FALSE)
   net<-igraph::graph_from_data_frame(tab,directed=F)
   E(net)$weight<-1-min(tab[,3],1)

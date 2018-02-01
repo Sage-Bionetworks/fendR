@@ -50,7 +50,7 @@ fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,ta
     graph = NULL, #to be filled in using selectFeaturesFromNetwork function
     remappedFeatures=NULL # to be filled in using engineerFeaturesFromNetwork function
   )
-  class(me) <- append(class(me),"fendR")
+  class(me) <- append(class(me),c("fendR",'fit'))
 
   #first normalize if there are functions populated
   if(!is.na(geneNorm))
@@ -63,7 +63,7 @@ fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,ta
   me<-reducePhenos(me,phenos)
   me<-reduceSamples(me,com.samps)
 
-  return(me)
+return(me)
 }
 
 ######################################################################
@@ -125,10 +125,9 @@ reduceGenes <-function(object,gene.list){
 }
 
 #'Predict from one object to another
-#'@export
-predict <-function(object,...){
-  UseMethod('predict',object)
-}
+#predict <-function(object,...){
+#  UseMethod('predict',object)
+#}
 
 #' Reduce model to only consider a subset of genes
 #' @export
@@ -162,7 +161,6 @@ reducePhenos.fendR <-function(object,phenos){
 #' Get model-ready matrix from original features
 #' @description return the original feature data in a response matrix for modeling
 #' @param object a fendrObject
-#' @keywords
 #' @export
 #' @return A response matrix to use for modeling with the formula 'Response~.'
 originalResponseMatrix <- function(object, phenotype=c(), ...){
@@ -192,14 +190,28 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
 
 #' Allows for prediction from one fendR object to another
 #' @description Evaluate how well one fendRized dataset predicts another
-#' @param object a fendrObject
-#' @keywords
+#' @param object a fendrObject from which to build a model
+#' @param otherObject a second fendRObject to predict to
+#' @param modelCall A string representing the command to call to do the prediction
+#' @param modelArgs A list of arguments to pass into the modelCall
+#' @param numDrugs Number of drugs to limit to
+#' @param extraLib Name of library that requires loading
 #' @export
-#' @return A response matrix to use for modeling with the formula 'Response~.'
-#can this function be rolled into the base package somehow?
+#' @return A data frame comparing the true values of the 'other' fendR object as well #' as the predicted models under a basic model and an engineered model
 predict.fendR<-function(fObj,otherObj,modelCall='lm',
   modelArgs=c(),
-  numDrugs=10){
+  predictArgs=c(),
+  numDrugs=10,extraLib=NA){
+
+  hasLib<-TRUE
+  if(!is.na(extraLib)){
+    print(paste('Loading',extraLib,'library'))
+    hasLib<-require(extraLib,character.only=TRUE)
+  }
+  if(!hasLib){
+    print(paste(extraLib,'library is not available, please install and try again'))
+    return(NULL)
+  }
 
   overlappingDrugs<-intersect(otherObj$sampleOutcomeData$Phenotype,fObj$sampleOutcomeData$Phenotype)
   print(paste('Predicting response of',length(overlappingDrugs),'in common between two sets'))
@@ -223,44 +235,56 @@ predict.fendR<-function(fObj,otherObj,modelCall='lm',
   origMatrix<-originalResponseMatrix(fObj)
   print(paste("Dimensions of original matrix",paste(dim(origMatrix),collapse=',')))
 
-  engMatrix<-engineeredResponseMatrix(fObj)
-  print(paste("Dimensions of engineered matrix",paste(dim(engMatrix),collapse=',')))
-
   ##need to loop through each phenotype for original matrix,
   orig.pred<-data.frame(sapply(overlappingDrugs,function(p){
     mod.dat<-dplyr::filter(origMatrix,Phenotype==p)%>%dplyr::select(-Phenotype)
     rownames(mod.dat)<-mod.dat$Sample
     mod.dat<-data.frame(dplyr::select(mod.dat,-Sample),check.names=TRUE)
-    orig.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
+    nas<-which(is.na(mod.dat$Response))
+    if(length(nas)>0)
+      mod.dat<-mod.dat[-nas,]
+#    orig.mod<-do.call(modelCall,args=c(list(formula=as.formula('Response~.'),data=mod.dat),modelArgs))
+    orig.mod<-do.call(modelCall,args=c(list(x=as.matrix(dplyr::select(mod.dat,-Response)),y=as.numeric(unlist(dplyr::select(mod.dat,Response)))),modelArgs))
 
     orig.test.features<-otherObj$featureData
     #artificially expand to do acast
     otf<-reshape2::acast(orig.test.features,Sample~Gene)
 
-    predict(orig.mod,newdata=data.frame(otf,check.names=TRUE))
+    oc<-do.call('predict',args=c(list(orig.mod,otf),predictArgs))
+    if(length(dim(oc))>1)
+      oc<-oc[,1]
+    oc
   }))
   colnames(orig.pred)<-overlappingDrugs
   orig.pred$Sample=rownames(orig.pred)
   orig.df<-gather(orig.pred,"Phenotype","Response",1:(ncol(orig.pred)-1))
   orig.df$PredType=rep("OriginalPrediction",nrow(orig.df))
 
+  engMatrix<-engineeredResponseMatrix(fObj)
+  print(paste("Dimensions of engineered matrix",paste(dim(engMatrix),collapse=',')))
 
-  eng.pred<-data.frame(sapply(overlappingDrugs,function(p){
-    mod.dat<-dplyr::filter(engMatrix,Phenotype==p)%>%dplyr::select(-Phenotype)
-    rownames(mod.dat)<-mod.dat$Sample
-    mod.dat<-data.frame(dplyr::select(mod.dat,-Sample),check.names=TRUE)
-    aug.test.features<-otherObj$remappedFeatures
-    atf<-reshape2::acast(select(dplyr::filter(aug.test.features,Phenotype==p),Gene,Sample,Value),Sample~Gene,value.var='Value')
 
-    eng.mod<-do.call(modelCall,args=list(formula='Response~.',data=mod.dat))
-    predict(eng.mod,newdata=data.frame(atf,check.names=TRUE))
+    mod.dat<-dplyr::filter(engMatrix,Phenotype%in%overlappingDrugs)%>%dplyr::select(-Phenotype,-Sample)
+    rownames(mod.dat)=paste(engMatrix$Phenotype,engMatrix$Sample,sep='_')
 
-  }))  #compare predictive results per drug
-  colnames(eng.pred)<-overlappingDrugs
+    nas<-which(is.na(mod.dat$Response))
+    if(length(nas)>0)
+      mod.dat<-mod.dat[-nas,]
 
-  eng.pred$Sample=rownames(eng.pred)
-  eng.df<-gather(eng.pred,"Phenotype","Response",1:(ncol(eng.pred)-1))
-  eng.df$PredType=rep('EngineeredPrediction',nrow(eng.df))
+    aug.test.features<-otherObj$remappedFeatures%>%dplyr::mutate(rn=paste(Phenotype,Sample,sep='_'))
+    atf<-reshape2::acast(aug.test.features,rn~Gene,value.var='Value')
+
+    #eng.mod<-do.call(modelCall,args=c(list(formula=as.formula('Response~.'),data=mod.dat),modelArgs))
+#    eng.mod<-do.call(modelCall,args=c(list(x=dplyr::select(mod.dat,-Response),y=unlist(dplyr::select(mod.dat,-Response)),data=mod.dat),modelArgs))
+    eng.mod<-do.call(modelCall,args=c(list(x=as.matrix(dplyr::select(mod.dat,-Response)),y=as.numeric(unlist(dplyr::select(mod.dat,Response)))),modelArgs))
+    pred.vec<-do.call('predict',args=c(list(eng.mod,atf),predictArgs))
+
+    #pred.vec<-predict(eng.mod,data.frame(atf,check.names=TRUE))
+
+    eng.df<-data.frame(Response=pred.vec,SampPhen=rownames(atf))%>%tidyr::separate(SampPhen,c("Phenotype","Sample"),sep='_')
+    colnames(eng.df)[1]<-'Response'
+    eng.df$PredType=rep('EngineeredPrediction',nrow(eng.df))
+
 
   test.df<-dplyr::filter(otherObj$sampleOutcomeData,Phenotype%in%overlappingDrugs)
   test.df$PredType=rep('TrueValues',nrow(test.df))

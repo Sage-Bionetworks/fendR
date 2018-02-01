@@ -2,10 +2,12 @@
 % Please edit documentation in R/fendR.R
 \name{reduceGenes.fendR}
 \alias{reduceGenes.fendR}
-\title{Reduce model to only consider a subset of genes}
+\title{Predict from one object to another
+Reduce model to only consider a subset of genes}
 \usage{
 \method{reduceGenes}{fendR}(object, gene.list)
 }
 \description{
+Predict from one object to another
 Reduce model to only consider a subset of genes
 }

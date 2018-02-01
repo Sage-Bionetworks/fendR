@@ -3,6 +3,7 @@
 ##
 library(fendR)
 library(synapseClient)
+library(dplyr)
 
 all.datasets=c('CCLE','Sanger','NTAP')
 
@@ -78,43 +79,5 @@ zscore <-function(x){
   (x-mean(x,na.rm=T))/sd(x,na.rm=T)
 }
 
-
-
-testCDP<-function(){
-
-  ccle<-buildFendRFromDataset('CCLE',geneNorm=zscore,responseNorm=zscore)
-  ccle$sampleOutcomeData$Phenotype<-tolower(ccle$sampleOutcomeData$Phenotype)
-  ccle$phenoFeatureData$Phenotype<-tolower(sapply(ccle$phenoFeatureData$Phenotype,function(x) unlist(strsplit(x,split='_'))[1]))
-
-   sanger<-buildFendRFromDataset('Sanger',geneNorm=zscore,responseNorm=zscore)
-  sanger$sampleOutcomeData$Phenotype<-tolower(sapply(sanger$sampleOutcomeData$Phenotype,function(x) unlist(strsplit(x,split='_'))[1]))
-  sanger$phenoFeatureData$Phenotype<-tolower(sapply(sanger$phenoFeatureData$Phenotype,function(x) unlist(strsplit(x,split='_'))[1]))
-
-  ##now we have to clean up the sanger dataset here
-  newsangervals<-mutate(sanger$sampleOutcomeData,SampPhen=paste(Sample,Phenotype,sep='_'))
-  newresp<-sapply(unique(newsangervals$SampPhen),function(x){
-    mv<-which(newsangervals$SampPhen==x)
-    if(length(mv)>1)
-      return(mean(newsangervals$Response[mv],na.rm=T))
-    else
-      return(newsangervals$Response[mv])
-  })
-
-  newsanger<-data.frame(SampPhen=names(newresp),Response=newresp)%>%separate(SampPhen,c("Sample","Phenotype"),sep='_')
-  sanger$sampleOutcomeData<-newsanger
-
-  res<-predict(ccle,sanger,numDrugs=10)
-  pl<-plotModelResults(res,'ccleToSanger10drugslm')
-
-  res<-predict(sanger,ccle,numDrugs=10)
-  pl<-plotModelResults(res,'SangerToCcle10drugslm')
-
-  ntap<-buildFendRFromDataset('NTAP',geneNorm=zscore,responseNorm=zscore)
-
-  ntap$sampleOutcomeData$Phenotype<-tolower(ntap$sampleOutcomeData$Phenotype)
-  res<-predict(sanger,ntap,numDrugs=10)
-
-  pl<-plotModelResults(res,'SangerToNTAP10drugslm')
-}
 
 
