@@ -2,7 +2,7 @@
 This package represents our attempts to identify novel drugs and/or targets from transcriptomic and/or genomic data. 
 
 ## Prior Work
-We built an [./R/](R test suite) to compare various network based approaches based on networks built by the Guan/Troyanskaya labs
+We built an [R test suite](./R) to compare various network based approaches based on networks built by the Guan/Troyanskaya labs
 
 ## Ongoing work
 We are currently experimenting with
