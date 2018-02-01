@@ -1,4 +1,4 @@
-#O ngoing development
+# Ongoing development
 
 This directory contains the files and information used to develop the fendR package. This directory has been added to the [.Rbuildignore](../.Rbuildignore) file.
 
