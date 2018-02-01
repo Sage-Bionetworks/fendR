@@ -12,7 +12,7 @@
 #' @param phenoFeatureData a data.frame where rows represent genes and columns represent a relationship between phenotype and gene
 #' @export
 #' @return a fendR object
-fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,targetGenes=NULL){
+fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,targetGenes=NULL,geneNorm=NA,responseNorm=NA){
 
   ##reduce genes by targetGenes if possible  - moved this from n3 fendR
   full.gene.set<-unique(featureData$Gene)
@@ -22,7 +22,7 @@ fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,ta
     if(!any(targetGenes %in% full.gene.set)) {
       stop("None of target genes are in the featureData")
     }
-    reduced.gene.set <- full.gene.set[full.gene.set %in% target.genes]
+    reduced.gene.set <- full.gene.set[full.gene.set %in% targetGenes]
     cat(paste0("Reducing feature space from ", num.genes.in.full.feature.space, " to ", length(reduced.gene.set), "\n"))
   } else {
     cat(paste0("Using all ", num.genes.in.full.feature.space, " genes in featureData.\n"))
@@ -36,18 +36,34 @@ fendR<-function(networkFile, featureData, phenoFeatureData, sampleOutcomeData,ta
   all.phenos<-union(sampleOutcomeData$Phenotype,phenoFeatureData$Phenotype)
   print(paste("Found",length(phenos),'phenotypes that have feature data and outcome data out of',length(all.phenos)))
 
+  ##figure out which samples have associated response data
+  com.samps<-intersect(sampleOutcomeData$Sample,featureData$Sample)
+  all.samps<-union(sampleOutcomeData$Sample,featureData$Sample)
+  print(paste("Found",length(com.samps),'samples that have feature data and outcome data out of',length(all.samps)))
 
-  ##now do some reduction
+  #first create base object, then use helper functions to update
   me <- list(network=networkFile,
-    featureData=subset(featureData,Gene%in%reduced.gene.set),
-    phenoFeatureData=subset(phenoFeatureData,Phenotype%in%phenos),
-    sampleOutcomeData=subset(sampleOutcomeData,Phenotype%in%phenos),
+    featureData=featureData,
+    phenoFeatureData=phenoFeatureData,
+    sampleOutcomeData=sampleOutcomeData,
     targetGenes=reduced.gene.set,
     graph = NULL, #to be filled in using selectFeaturesFromNetwork function
     remappedFeatures=NULL # to be filled in using engineerFeaturesFromNetwork function
   )
-  class(me) <- append(class(me),"fendR")
-  return(me)
+  class(me) <- append(class(me),c("fendR",'fit'))
+
+  #first normalize if there are functions populated
+  if(!is.na(geneNorm))
+      me<-normalizeFeatureValues(me,geneNorm)
+  if(!is.na(responseNorm)){
+    me<-normalizeResponse(me,responseNorm)
+  }
+  ##now do some reduction
+  me<-reduceGenes(me,reduced.gene.set)
+  me<-reducePhenos(me,phenos)
+  me<-reduceSamples(me,com.samps)
+
+return(me)
 }
 
 ######################################################################
@@ -67,6 +83,30 @@ loadNetwork <- function(object){
 }
 
 
+#' Normalize response to drug
+#' @description Applies `normFunction` to each cell line across the drug screening library
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized response
+normalizeResponse <-function(object,normFunction){
+  UseMethod('normalizeResponse',object)
+
+}
+
+#' Normalize gene expressoin data
+#' @description Applies `normFunction` to each cell line across the features/genes
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized gene expression dataset
+normalizeFeatureValues <-function(object,normFunction){
+  UseMethod('normalizeFeatureValues',object)
+
+}
+
 #' Engineer Features from Network
 #' @description Takes the igraph populated by \code{loadNetwork}
 #' and propagates scores to remapped features
@@ -78,11 +118,49 @@ createNewFeaturesFromNetwork<-function(object, ...){
   UseMethod('createNewFeaturesFromNetwork',object)
 }
 
+#'
+#'@export
+reduceGenes <-function(object,gene.list){
+  UseMethod('reduceGenes',object)
+}
+
+#'Predict from one object to another
+#predict <-function(object,...){
+#  UseMethod('predict',object)
+#}
+
+#' Reduce model to only consider a subset of genes
+#' @export
+reduceGenes.fendR<-function(object,gene.list){
+  object$featureData=subset(object$featureData,Gene%in%gene.list)
+  if(!is.null(object$remappedFeatures))
+    object$remappedFeatures<-subset(object$remappedFeatures,Gene%in%gene.list)
+  return(object)
+}
+
+reduceSamples<-function(object,samp.list){
+  UseMethod("reduceSamples",object)
+}
+#' Reduce mode to only consider a set of samples
+reduceSamples.fendR <- function(object,samp.list){
+  object$featureData=subset(object$featureData,Sample%in%samp.list)
+  object$sampleOutcomeData=subset(object$sampleOutcomeData,Sample%in%samp.list)
+  return(object)
+}
+
+reducePhenos <-function(object,phenos){
+  UseMethod('reducePhenos',object)
+}
+#' Reduce model to only consider a set of phenotypes
+reducePhenos.fendR <-function(object,phenos){
+  object$sampleOutcomeData=subset(object$sampleOutcomeData,Phenotype%in%phenos)
+  object$phenoFeatureData=subset(object$phenoFeatureData,Phenotype%in%phenos)
+  return(object)
+}
 
 #' Get model-ready matrix from original features
 #' @description return the original feature data in a response matrix for modeling
 #' @param object a fendrObject
-#' @keywords
 #' @export
 #' @return A response matrix to use for modeling with the formula 'Response~.'
 originalResponseMatrix <- function(object, phenotype=c(), ...){
@@ -104,9 +182,146 @@ originalResponseMatrix.fendR <- function(object,phenotype=c()){
     phenotype <- unique(object$sampleOutcomeData$Phenotype)
 
   fres<-dplyr::inner_join(object$featureData,subset(object$sampleOutcomeData,Phenotype%in%phenotype),by='Sample')%>%dplyr::select(Sample,Gene,Value,Response,Phenotype)
-  dres<-tidyr::spread(fres,Gene,value=Value,drop=TRUE)
+  dres<-tidyr::spread(unique(fres),Gene,value=Value,drop=TRUE)
 
   return(dres)
+
+}
+
+#' Allows for prediction from one fendR object to another
+#' @description Evaluate how well one fendRized dataset predicts another
+#' @param object a fendrObject from which to build a model
+#' @param otherObject a second fendRObject to predict to
+#' @param modelCall A string representing the command to call to do the prediction
+#' @param modelArgs A list of arguments to pass into the modelCall
+#' @param numDrugs Number of drugs to limit to
+#' @param extraLib Name of library that requires loading
+#' @export
+#' @return A data frame comparing the true values of the 'other' fendR object as well #' as the predicted models under a basic model and an engineered model
+predict.fendR<-function(fObj,otherObj,modelCall='lm',
+  modelArgs=c(),
+  predictArgs=c(),
+  numDrugs=10,extraLib=NA){
+
+  hasLib<-TRUE
+  if(!is.na(extraLib)){
+    print(paste('Loading',extraLib,'library'))
+    hasLib<-require(extraLib,character.only=TRUE)
+  }
+  if(!hasLib){
+    print(paste(extraLib,'library is not available, please install and try again'))
+    return(NULL)
+  }
+
+  overlappingDrugs<-intersect(otherObj$sampleOutcomeData$Phenotype,fObj$sampleOutcomeData$Phenotype)
+  print(paste('Predicting response of',length(overlappingDrugs),'in common between two sets'))
+
+  overlappingDrugs<-sample(overlappingDrugs,numDrugs)
+  print(paste('selecting',length(overlappingDrugs),'of them'))
+
+  #renormalize gene data, response data
+  fObj <- loadNetwork(fObj) ###only need to load graph once
+  fObj<-createNewFeaturesFromNetwork(fObj,overlappingDrugs)
+
+  otherObj <- loadNetwork(otherObj) ###only need to load graph once
+  otherObj<-createNewFeaturesFromNetwork(otherObj,overlappingDrugs)
+
+  common.genes<-intersect(fObj$targetGenes,otherObj$targetGenes)
+
+  fObj<-reduceGenes(fObj,common.genes)
+  otherObj<-reduceGenes(otherObj,common.genes)
+
+  #build train dataset from original object
+  origMatrix<-originalResponseMatrix(fObj)
+  print(paste("Dimensions of original matrix",paste(dim(origMatrix),collapse=',')))
+
+  ##need to loop through each phenotype for original matrix,
+  orig.pred<-data.frame(sapply(overlappingDrugs,function(p){
+    mod.dat<-dplyr::filter(origMatrix,Phenotype==p)%>%dplyr::select(-Phenotype)
+    rownames(mod.dat)<-mod.dat$Sample
+    mod.dat<-data.frame(dplyr::select(mod.dat,-Sample),check.names=TRUE)
+    nas<-which(is.na(mod.dat$Response))
+    if(length(nas)>0)
+      mod.dat<-mod.dat[-nas,]
+#    orig.mod<-do.call(modelCall,args=c(list(formula=as.formula('Response~.'),data=mod.dat),modelArgs))
+    orig.mod<-do.call(modelCall,args=c(list(x=as.matrix(dplyr::select(mod.dat,-Response)),y=as.numeric(unlist(dplyr::select(mod.dat,Response)))),modelArgs))
+
+    orig.test.features<-otherObj$featureData
+    #artificially expand to do acast
+    otf<-reshape2::acast(orig.test.features,Sample~Gene)
+
+    oc<-do.call('predict',args=c(list(orig.mod,otf),predictArgs))
+    if(length(dim(oc))>1)
+      oc<-oc[,1]
+    oc
+  }))
+  colnames(orig.pred)<-overlappingDrugs
+  orig.pred$Sample=rownames(orig.pred)
+  orig.df<-gather(orig.pred,"Phenotype","Response",1:(ncol(orig.pred)-1))
+  orig.df$PredType=rep("OriginalPrediction",nrow(orig.df))
+
+  engMatrix<-engineeredResponseMatrix(fObj)
+  print(paste("Dimensions of engineered matrix",paste(dim(engMatrix),collapse=',')))
+
+
+    mod.dat<-dplyr::filter(engMatrix,Phenotype%in%overlappingDrugs)%>%dplyr::select(-Phenotype,-Sample)
+    rownames(mod.dat)=paste(engMatrix$Phenotype,engMatrix$Sample,sep='_')
+
+    nas<-which(is.na(mod.dat$Response))
+    if(length(nas)>0)
+      mod.dat<-mod.dat[-nas,]
+
+    aug.test.features<-otherObj$remappedFeatures%>%dplyr::mutate(rn=paste(Phenotype,Sample,sep='_'))
+    atf<-reshape2::acast(aug.test.features,rn~Gene,value.var='Value')
+
+    #eng.mod<-do.call(modelCall,args=c(list(formula=as.formula('Response~.'),data=mod.dat),modelArgs))
+#    eng.mod<-do.call(modelCall,args=c(list(x=dplyr::select(mod.dat,-Response),y=unlist(dplyr::select(mod.dat,-Response)),data=mod.dat),modelArgs))
+    eng.mod<-do.call(modelCall,args=c(list(x=as.matrix(dplyr::select(mod.dat,-Response)),y=as.numeric(unlist(dplyr::select(mod.dat,Response)))),modelArgs))
+    pred.vec<-do.call('predict',args=c(list(eng.mod,atf),predictArgs))
+
+    #pred.vec<-predict(eng.mod,data.frame(atf,check.names=TRUE))
+
+    eng.df<-data.frame(Response=pred.vec,SampPhen=rownames(atf))%>%tidyr::separate(SampPhen,c("Phenotype","Sample"),sep='_')
+    colnames(eng.df)[1]<-'Response'
+    eng.df$PredType=rep('EngineeredPrediction',nrow(eng.df))
+
+
+  test.df<-dplyr::filter(otherObj$sampleOutcomeData,Phenotype%in%overlappingDrugs)
+  test.df$PredType=rep('TrueValues',nrow(test.df))
+  full.df<-rbind(test.df,orig.df,eng.df)
+  full.df
+}
+
+#' Normalize response to drug
+#' @description Applies `normFunction` to each cell line across the drug screening library
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized response
+normalizeResponse.fendR <-function(object,normFunction){
+
+  updated.data<-group_by(object$sampleOutcomeData,Sample)%>%mutate(normResponse=normFunction(Response))
+  updated.data<-data.frame(updated.data)%>%select(-Response)%>%select(Sample,Phenotype,Response=normResponse)
+
+  object$sampleOutcomeData <-updated.data
+  object
+}
+
+#' Normalize gene expressoin data
+#' @description Applies `normFunction` to each cell line across the features/genes
+#' @param object A fendR object
+#' @param normFunction a function that will normalize the vector
+#' @keywrods normalization
+#' @export
+#' @return A fendR object with normalized gene expression dataset
+normalizeFeatureValues.fendR <-function(object,normFunction){
+
+  updated.data<-group_by(object$featureData,Sample)%>%mutate(normValue=normFunction(Value))
+  updated.data<-data.frame(updated.data)%>%select(-Value)%>%select(Gene,Sample,Value=normValue)
+
+  object$featureData <-updated.data
+  object
 
 }
 

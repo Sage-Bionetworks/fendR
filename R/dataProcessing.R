@@ -15,9 +15,18 @@
 #' @examples
 #' @return tidied data frame with columns 'Gene','Sample' and 'Value'
 loadSampleData <- function(fname){
-  tab<-read.table(fname,stringsAsFactors =FALSE)
+  if(length(grep("gz$",fname))>0)
+    tab<-read.table(gzfile(fname),stringsAsFactors =FALSE,check.names=F)
+  else
+    tab<-read.table(fname,stringsAsFactors =FALSE,check.names=F)
   tab$Gene<-rownames(tab)
-  res<-tidyr::gather(tab,"Sample","Value",1:(ncol(tab)-1))
+  res<-NULL
+  try(
+    res<-tidyr::gather(data.frame(tab,check.names=F),"Sample","Value",1:(ncol(tab)-1))
+  )
+  if(is.null(res))
+    res<-tidyr::gather(data.frame(tab,check.names=T),"Sample","Value",1:(ncol(tab)-1))
+
   return(res)
 }
 
@@ -30,7 +39,7 @@ loadSampleData <- function(fname){
 #' @examples
 #' @return tidied data frame with columns 'Sample','Phenotype','Response'
 loadPhenotypeData <- function(fname){
-  tab<-read.table(fname)
+  tab<-read.table(fname,sep ='\t',check.names=F)
   tab$Sample<-rownames(tab)
   res<-tidyr::gather(tab,"Phenotype","Response",1:(ncol(tab)-1))
   return(res)
@@ -45,15 +54,13 @@ loadPhenotypeData <- function(fname){
 #' @examples
 #' @return Data frame with at least 2 column
 loadTargetData <- function(fname){
-  tab<-read.table(fname,header=T,stringsAsFactors =FALSE)
-  colnames(tab)<-c("Phenotype","Gene")
+  tab<-read.table(fname,header=T,sep='\t',stringsAsFactors =FALSE,check.names=F)
+  if(ncol(tab)==2)
+    colnames(tab)<-c("Phenotype","Gene")
+  else
+    tab<-tab%>%select(Phenotype,Gene)
   tab
 }
-
-
-
-
-
 
 
 
@@ -71,25 +78,42 @@ edgeList2matrix =function(elPath, outPath=NULL) # el (edge list) should be a dat
   suppressPackageStartupMessages(library("tidyr"))
   suppressPackageStartupMessages(library("plyr"))
   suppressPackageStartupMessages(library("feather"))
-  
+
   writeLines("This function reads in a fully connected matrix as 4 column edge list:\n\"geneA geneB goldStandardFlag edge\"\n\nlike those found at http://fntm.princeton.edu/download/\nand writes out a NxN feather file\nit can take a while (like 30 min on a r3.4xlarge ec2 instance)...\nEnjoy!\n\nP.S. you may want to clean up your environment before running this")
-  
+
   el    <- data.table::fread(elPath, data.table = T); colnames(el) <- c("geneA","geneB","goldStandardFlag", "edge"); gc() # names are needed for the plyr and tidyr calls
   el    <- el[,-3]; gc()
   el    <- tibble::as_tibble(el); gc()
   elRev <- el; elRev$geneA <- el$geneB; elRev$geneB <- el$geneA
   el    <- base::rbind(el, elRev); rm(elRev); gc();
-  
+
   print("spreading df to matrix")
   print(date())
   el       <- tidyr::spread(el, key= "geneB", value = "edge"); gc() # tidyr call to get tible matrix
   el       <- as.matrix(el[,-1])
   diag(el) <- 1
   print(date())
-  
+
   if(is.null(outPath)){outPath = dirname(elPath)}
   print(paste("writing out to", outPath))
   feather::write_feather(as.data.frame(el), path = file.path(outPath,gsub("txt$","feather",basename(elPath))))
+}
+
+#' drugNameMapping
+#'
+#' \code{drugNameMapping} collects information from the CCLE, SANGER and NTAP datasets to create a table that maps one drug to the others
+#' @param
+#' @param
+#' @export
+#' @return a data frame with each drug and its aliass on each row
+drugNameMapping <- function(){}
+
+#' cellLineMapping
+#'
+#' \code{cellLineMapping} collects information from CCLE and SANGER datasets to ensure to create a table that maps cell lines from one to another
+#'
+cellLineMapping <-function(){
+
 }
 
 #' translateMatrixIdentifiers

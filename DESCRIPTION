@@ -8,5 +8,5 @@ Maintainer: Sweet Dee Charlie Mac and Dennis <fendR@sagebase.org>
 Description: This package enables the comparison of network-based algorithms in a predictive framework.
 License: What license is it under?
 LazyData: TRUE
-RoxygenNote: 5.0.1.9000
+RoxygenNote: 6.0.1
 Depends: igraph, bigmemory, varComp, data.table, doMC, feather, ggplot2, igraph, plyr, tibble, tidyr,dplyr

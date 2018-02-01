@@ -12,8 +12,8 @@
 #' @inheritParams fendR
 #' @export
 #' @return basicFendR object
-basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData){
- me <-fendR(networkFile, featureData, phenoFeatureData,sampleOutcomeData)
+basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes=NULL,geneNorm=NA,responseNorm=NA){
+ me <-fendR(networkFile, featureData, phenoFeatureData,sampleOutcomeData,targetGenes,geneNorm,responseNorm)
  class(me) <- append(class(me),'basicFendR')
  return(me)
 }
@@ -31,6 +31,10 @@ basicFendR<-function(networkFile, featureData, phenoFeatureData,sampleOutcomeDat
 #' @return a fendR object with the graph parameter populated with an iGraph object where edge weights represent distance between nodes (smaller means *more* association)
 #' @examples
 loadNetwork.basicFendR <- function(fObj){
+  if(!is.null(fObj$graph)){
+    print("Network already loaded")
+    return(fObj)
+  }
   tab<-read.table(fObj$network,stringsAsFactors =FALSE)
   net<-igraph::graph_from_data_frame(tab,directed=F)
   E(net)$weight<-1-min(tab[,3],1)
@@ -49,11 +53,7 @@ loadNetwork.basicFendR <- function(fObj){
 createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
   #  doMC::registerDoMC()
 
-    ##figure out which phenotypes have both feature data and outcome data
     phenos<-intersect(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
-    all.phenos<-union(object$sampleOutcomeData$Phenotype,object$phenoFeatureData$Phenotype)
-    print(paste("Found",length(phenos),'phenotypes that have feature data and outcome data out of',length(all.phenos)))
-
 
     if(!is.na(testDrugs)&&any(testDrugs%in%phenos)){
       print(paste("Reducing scope to only focus on",paste(testDrugs,collapse=',')))
@@ -71,7 +71,8 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
         #get minimum across all drug targets
         min.to.targ<-apply(gd,2,min)
         #remove Inf values
-        min.to.targ<-min.to.targ[which(is.finite(min.to.targ))]
+        max.val<-max(min.to.targ[which(is.finite(min.to.targ))])
+        min.to.targ[which(!is.finite(min.to.targ))]<-max.val+1
         min.to.targ
     },.parallel = TRUE)
     pheno.updates<-t(pheno.updates)
@@ -104,20 +105,20 @@ createNewFeaturesFromNetwork.basicFendR<-function(object,testDrugs=NA){
     ##Reduction strategy:
     #if we have multiple drugs: remove any genes that don't change across drugs.
     #eventually do something more complicated
-    if(is.na(testDrugs)||length(testDrugs>1)){
-      gene.var<-newdf%>%dplyr::group_by(Gene)%>%dplyr::summarize(Variance=var(NetworkValue))
-      var.thresh=0.99
-      nzvars<-which(gene.var$Variance>quantile(gene.var$Variance,na.rm=T,var.thresh)[[paste(var.thresh*100,'%',sep='')]])
+  #  if(is.na(testDrugs)||length(testDrugs>1)){
+  #    gene.var<-newdf%>%dplyr::group_by(Gene)%>%dplyr::summarize(Variance=var(NetworkValue))
+  #    var.thresh=0.99
+  #    nzvars<-which(gene.var$Variance>quantile(gene.var$Variance,na.rm=T,var.thresh)[[paste(var.thresh*100,'%',sep='')]])
 
-      #nzvars<-which(gene.var$Variance>0)
-      genes<-gene.var$Gene[nzvars]
-      print(paste('Keeping',length(nzvars),'gene values that change across drug treatments out of',length(gene.var$Gene)))
-    }else{
-       nzvars<-which(mutate(newdf,Diff=Value-NetworkValue)$Diff!=0)
-       genes<-newdf$Gene[nzvars]
-      print(paste('Keeping',length(nzvars),'gene values are altered by the network out of',nrow(newdf)))
-    }
-    newdf<-subset(newdf,Gene%in%genes)
+
+  #    genes<-gene.var$Gene[nzvars]
+  #    print(paste('Keeping',length(nzvars),'gene values that change across drug treatments out of',length(gene.var$Gene)))
+  #  }else{
+  #     nzvars<-which(mutate(newdf,Diff=Value-NetworkValue)$Diff!=0)
+  #     genes<-newdf$Gene[nzvars]
+  #    print(paste('Keeping',length(nzvars),'gene values are altered by the network out of',nrow(newdf)))
+  #  }
+  #  newdf<-subset(newdf,Gene%in%genes)
 
     object$remappedFeatures<-newdf%>%select(Gene,Sample,Phenotype,
       Value=NetworkValue)
@@ -146,16 +147,18 @@ engineeredResponseMatrix.basicFendR<-function(fObj,phenotype=c()){
 
  # rownames(res)<-res$SamplePheno
   res<-res[,-which(colnames(res)%in%c('Gene','SamplePheno'))]
-
-  avar<-apply(res,2,var)
-  #var.thresh=0.99
- # zvar<-which(avar<quantile(avar,na.rm=T,var.thresh)[[paste(var.thresh*100,'%',sep='')]])#
-  zvar<-which(avar==0)
-
-  if(length(zvar)>0){
-  print(paste('Removing',length(zvar),'features from matrix out of',length(avar)))
-  res<-res[,-zvar]
-  }
+  nas<-which(is.na(res$Response))
+  if(length(nas)>0)
+    res<-res[-nas,]
+ #  avar<-apply(res,2,var)
+ #  #var.thresh=0.99
+ # # zvar<-which(avar<quantile(avar,na.rm=T,var.thresh)[[paste(var.thresh*100,'%',sep='')]])#
+ #  zvar<-which(avar==0)
+ #
+ #  if(length(zvar)>0){
+ #  print(paste('Removing',length(zvar),'features from matrix out of',length(avar)))
+ #  res<-res[,-zvar]
+ #  }
   res
 
 
