@@ -12,50 +12,6 @@ pheno.file<-system.file('CTRP_v20_AUC_vales_by_drug.tsv',package='fendR')
 
 
 
-loadEset<-function(rna.seq.data,pheno.file){
-  #get data files
-  rna.data<-loadSampleData(rna.seq.data)
-
-  pheno.data<-loadPhenotypeData(pheno.file)
-
-  samples<-intersect(rna.data$Sample,pheno.data$Sample)
-
-  #create rna matrix
-  rna.mat<-unique(rna.data)%>%spread(key=Sample,value=Value)
-  rownames(rna.mat)<-rna.mat$Gene
-  rna.mat<-select(rna.mat,-Gene)%>%select(samples)
-
-  #maybe we can use each row as input into viper
-  phen.class<-spread(pheno.data,key=Phenotype,value=Response)%>%as.data.frame()
-  rownames(phen.class)<-phen.class$Sample
-  phen.class<-phen.class%>%rename(sampleID=Sample)
-
-
-  #now i just need a regulon!!!
-  eset<-Biobase::ExpressionSet(as.matrix(rna.mat))#,phenoData=Biobase::AnnotatedDataFrame(phen.class[which(rownames(phen.class)%in%samples),]))
-
-  Biobase::phenoData(eset)<-Biobase::AnnotatedDataFrame(phen.class[which(rownames(phen.class)%in%samples),])
-  return(eset)
-
-}
-
-addResponseClass<-function(eset,thresholds=c(0.25,0.75)){
-  #extract pheno data to ascribe high/low
-
-  pheno.data <-pData(eset)%>%gather(key="Phenotype",value="Response",-sampleID)
-  ##ascribe high/low values based on quantile data
-  with.class<-pheno.data%>%group_by(Phenotype)%>%mutate(ResponseType=ifelse(Response<quantile(Response,thresholds,na.rm=T)[1],"Low",ifelse(Response>quantile(Response,thresholds,na.rm=T)[2],"High","Mid")))
-
-  phen.class<-spread(select(data.frame(with.class),-Response),key=Phenotype,value=ResponseType)%>%as.data.frame()
-
-  rownames(phen.class)<-phen.class$sampleID
-  phen.class<-phen.class%>%rename(Sample='sampleID')
-
-  Biobase::phenoData(eset)<-Biobase::AnnotatedDataFrame(phen.class)
-
-  return(eset)
-}
-
 #' collect gene lists
 #'
 #' \code{loadSampleData} takes a file path and loads it into a data frame
