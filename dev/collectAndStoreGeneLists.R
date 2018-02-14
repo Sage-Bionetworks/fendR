@@ -87,10 +87,10 @@ collectGeneLists<-function(eset,parentId=''){
 eset<-loadEset(rna.seq.data,pheno.file)
 pset<-addResponseClass(eset)
 
-adjfile='~/Code/fendR/dev/tf2gene.adj'
+#adjfile='~/Code/fendR/dev/tf2gene.adj'
 #load regulon
-reg<-aracne2regulon(adjfile, eset, verbose = TRUE)
-
+#reg<-aracne2regulon(adjfile, eset, verbose = TRUE)
+load('dev/dnaseCCLEregulon.Rdata')
 #now for each drug, identify signature, run viper.
 drugs<-c("BRD-K11533227","dacarbazine")##two drugs for which we have diff ex genes
 all.sigs<-sapply(drugs,function(drug) rowTtest(pset, pheno=drug,group1='High',group2='Low')$statistic)
@@ -99,8 +99,12 @@ rownames(all.sigs)<-rownames(exprs(pset))
 drugs<-c("BRD-K11533227","dacarbazine")
 null.sigs<-lapply(drugs,function(drug) ttestNull(pset, pheno=drug,group1='High',group2='Low',per=100))
 
+library(aracne.networks)
 
 #run viper
 res1 <- msviper(all.sigs[,1], reg,null.sigs[[1]])
-res2 <- msviper(all.sigs[,2], reg,null.sigs[[2]])
+res2 <- msviper(all.sigs[,2],  ,null.sigs[[2]])
+
+res1.all
+res2.all
 
