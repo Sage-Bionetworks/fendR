@@ -6,10 +6,9 @@
 #---------------------------------------------------------
 
 
-require(fendR)
 library(devtools)
 load_all('/Users/sgosline/code/PCSF')
-
+#library(PCSF)
 loadDrugGraph <- function(){
 
   ##load drug-target networ
@@ -24,10 +23,22 @@ getDrugs <-function(drug.graph){
   drugs
 }
 
-getDrugNames <- function(drugs){
 
-  mapping <- readRDS(synGet('syn11802195')@filePath)
-  mapping
+getDrugIds <- function(drug_names){
+
+  prefix="select * from syn11819696 where common_name="
+  query=paste(prefix,paste(drug_names,collapse=" OR common_name="),sep='')
+  res <- synTableQuery(query)@values$internal_id
+  return(res)
+
+}
+
+getDrugNames <- function(drug_ids){
+
+  prefix="select * from syn11819696 where internal_id="
+  query=paste(prefix,paste(drug_names,collapse=" OR internal_name="),sep='')
+  res <- synTableQuery(query)@values$common_name
+  return(res)
 }
 
 buildNetwork <- function(drug.graph){
