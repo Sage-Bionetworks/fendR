@@ -1,12 +1,11 @@
 #------------------
 #
-# convert differential gene expression dataset to viper
+#process differential expression data to extract proteins of interest
 #
-# Goal is to get a differential expression dataset into viper and then
+# Current goal is to get a differential expression dataset into viper
 #------------------
 
 library(viper)
-library(aracne.networks)
 library(tidyverse)
 
 #' \code{loadEset} takes the rna seq and pheno test files and builds expression set
@@ -23,6 +22,7 @@ loadEset<-function(rna.seq.data,pheno.file,useEntrez=TRUE){
   rna.data<-loadSampleData(rna.seq.data)
 
   pheno.data<-loadPhenotypeData(pheno.file)
+  pheno.data$Phenotype <- tolower(pheno.data$Phenotype)
 
   samples<-intersect(rna.data$Sample,pheno.data$Sample)
 
@@ -91,21 +91,21 @@ addResponseClass<-function(eset,drug,thresholds=c(0.25,0.75)){
 #' @examples
 #' @return viper object
 
-runViperOnDrugs <- function(eset, drugs = c("BRD-K11533227","dacarbazine")){
+runViperOnDrug <- function(eset, drug){
+  library(aracne.networks)
 
-  drugs<-c("BRD-K11533227","dacarbazine")##two drugs for which we have diff ex genes
-  all.sigs<-sapply(drugs,
-      function(drug) rowTtest(eset, pheno=drug,group1='High',group2='Low')$statistic)
-  rownames(all.sigs)<-rownames(exprs(eset))
-
+  sig <-rowTtest(eset, pheno=drug,group1='High',group2='Low')$statistic
 
   #TODO: increase number of permuations! this is too low!!
-  null.sigs<-lapply(drugs,function(drug) ttestNull(eset, pheno=drug,group1='High',group2='Low',per=100))
+  null.sig <- ttestNull(eset, pheno=drug,group1='High',group2='Low',per=100)
 
-  #TODO: get aracne networks
+  #get aracne networks
+  net.names <- data(package="aracne.networks")$results[, "Item"]
+  all.networks <- lapply(net.names,function(x) get(x))
+  names(all.networks) <- net.names
 
   #TODO: run viper
-  res <- msviper(all.sigs[,1], reg,null.sigs[[1]])
+  res <- msviper(all.sigs[,1], all.networks,null.sigs[[1]])
 
   return(res)
 }
