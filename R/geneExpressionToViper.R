@@ -83,39 +83,45 @@ addResponseClass<-function(eset,drug,thresholds=c(0.25,0.75)){
   return(eset)
 }
 
-#' \code{runViperOnDrugs} takes an expression set and a list of drugs and identifies a viper list of proteins that explain differential expression
+
+#' \code{runViperOnDset} takes an expression set and runs viper with all aracne
+#' # networks
 #' @param eset is expression set
-#' @param drugs is a list of drug names
 #' @keywords
 #' @export
 #' @examples
 #' @return viper object
-
-runViperOnDrug <- function(eset, drug,pvalthresh=0.1,useEntrez=TRUE){
+runViperOnDset <- function(eset){
   library(aracne.networks)
   #get aracne networks
   net.names <- data(package="aracne.networks")$results[, "Item"]
   all.networks <- lapply(net.names,function(x) get(x))
   names(all.networks) <- net.names
 
+  res <- viper(exprs(eset), all.networks)
+  return(res)
+}
+#
+#' \code{getViperForDrug} takes an expression set and a list of drugs and identifies a viper list of proteins that explain differential expression
+#' @param drugs is a list of drug names
+#' @keywords
+#' @export
+#' @examples
+#' @return viper object
+
+getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE){
+
   #TODO: increase number of permuations! this is too low!!
-
-
-  #create viper signature from high vs. low
-  high = which(pData(eset)[[drug]] =='High')
-  low = which(pData(eset)[[drug]]=='Low')
-  sig<-viperSignature(exprs(eset)[,high],exprs(eset)[,low],per=100)
 
 
 #  null.sig <- ttestNull(eset, pheno=drug,group1='High',group2='Low',per=100)
  # vsig <-viperSignature(sig,null.sig,method='ttest')
-  res <- viper(exprs(eset), all.networks)
 
-   sig <-rowTtest(res[,high],res[,low])$statistic
-   pval<-rowTtest(res[,high],res[,low])$p.value
+   sig <-rowTtest(v.res[,high],v.res[,low])$statistic
+   pval<-rowTtest(v.res[,high],v.res[,low])$p.value
   sig.ps<-which(p.adjust(pval)<pvalthresh)
   ret<-sig[sig.ps]
-  names(ret)<-rownames(res)[sig.ps]
+  names(ret)<-rownames(v.res)[sig.ps]
 
   if(useEntrez){
     library(org.Hs.eg.db)

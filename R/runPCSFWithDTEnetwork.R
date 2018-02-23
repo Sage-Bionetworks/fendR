@@ -6,8 +6,13 @@
 #---------------------------------------------------------
 
 
-library(devtools)
-load_all('/Users/sgosline/code/PCSF',recompile=FALSE)
+
+library(PCSF)
+##make sure to install PCSF from her
+##library(devtools)
+##install_github("sgosline/PCSF",username='sgosline')
+
+
 #library(PCSF)
 
 #' \code{loadDrugGraph} Identifies drugs in a
@@ -19,9 +24,9 @@ load_all('/Users/sgosline/code/PCSF',recompile=FALSE)
 loadDrugGraph <- function(){
 
   ##load drug-target networ
-  require(synapseClient)
-  synapseLogin()
-  drug.graph<-readRDS(synGet('syn11802194')@filePath)
+  require(synapser)
+  synLogin()
+  drug.graph<-readRDS(synGet('syn11802194')$path)
   return(drug.graph)
 }
 
@@ -47,8 +52,8 @@ getDrugs <-function(drug.graph){
 #' @return
 #'
 getDrugIds <- function(drug_names){
-  require(synapseClient)
-  synapseLogin()
+  require(synapser)
+  synLogin()
 
   #remove problematic/combo screens
   parens=grep("(",drug_names,fixed=T)
@@ -57,7 +62,7 @@ getDrugIds <- function(drug_names){
 
   prefix="select * from syn11831632 where common_name='"
   query=paste(prefix,paste(drug_names,collapse="' OR common_name='"),sep='')
-  res <- synTableQuery(paste(query,"'",sep=''))@values
+  res <- as.data.frame(syanpser::synTableQuery(paste(query,"'",sep='')))
 
   print(paste("Found",nrow(res),'drug internal ids for',length(drug_names),'common names'))
   colnames(res) <- c("ids","drugs")
