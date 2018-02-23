@@ -34,6 +34,7 @@ findDrugsWithTargetsAndGenes <-function(rna.seq.data,
   #get drugs that have target ids
   matched.ids <- getDrugIds(varLabels(pset))
 
+  library(viper)
   #get those with significantly differentially expressed genes
   all.pvals<-sapply(tolower(matched.ids$drugs),function(drug) rowTtest(pset, pheno=drug,group1='High',group2='Low')$p.value)
 
@@ -44,14 +45,29 @@ findDrugsWithTargetsAndGenes <-function(rna.seq.data,
 
   #build network
   drug.graph <- loadDrugGraph()
-  combined.graph <-buildNetwork()
+  combined.graph <-buildNetwork(drug.graph)
   all.drugs <- getDrugsFromGraph(drug.graph)
 
-  #TODO: make this multi-core
+  #TODO: make this multi-core, possibly break into smaller functions
   all.res <- lapply(nz.sig,function(drug,pset,all.drugs){
     v.res <- runViperOnDrug(pset,drug)
+  #  prots <- getRegsFromViper(v.res)
+    pcsf.res <-runPcsfWithParams(combined.graph,abs(v.res),all.drugs,w=5,mu=5e-02)
+    drug.res <- intersect(all.drugs,V(pcsf.res)$name)
+    #now get average tamimoto distance between that drug and drug of interest
+    print(paste("Selected",length(drug.res),'drugs in the graph'))
 
+    ##collect stats, store in synapse table
 
   })
+
+  #TODO: evaluate all graphs with reference to network
+
+
+}
+
+
+trackNetworkStats<-function(pcsf.res,w,mu,b){
+
 
 }

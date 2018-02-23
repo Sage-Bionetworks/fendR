@@ -91,23 +91,48 @@ addResponseClass<-function(eset,drug,thresholds=c(0.25,0.75)){
 #' @examples
 #' @return viper object
 
-runViperOnDrug <- function(eset, drug){
+runViperOnDrug <- function(eset, drug,pvalthresh=0.1,useEntrez=TRUE){
   library(aracne.networks)
-
-  sig <-rowTtest(eset, pheno=drug,group1='High',group2='Low')$statistic
-
-  #TODO: increase number of permuations! this is too low!!
-  null.sig <- ttestNull(eset, pheno=drug,group1='High',group2='Low',per=100)
-
   #get aracne networks
   net.names <- data(package="aracne.networks")$results[, "Item"]
   all.networks <- lapply(net.names,function(x) get(x))
   names(all.networks) <- net.names
 
-  #TODO: run viper
-  res <- msviper(all.sigs[,1], all.networks,null.sigs[[1]])
+  #TODO: increase number of permuations! this is too low!!
 
-  return(res)
+
+  #create viper signature from high vs. low
+  high = which(pData(eset)[[drug]] =='High')
+  low = which(pData(eset)[[drug]]=='Low')
+  sig<-viperSignature(exprs(eset)[,high],exprs(eset)[,low],per=100)
+
+
+#  null.sig <- ttestNull(eset, pheno=drug,group1='High',group2='Low',per=100)
+ # vsig <-viperSignature(sig,null.sig,method='ttest')
+  res <- viper(exprs(eset), all.networks)
+
+   sig <-rowTtest(res[,high],res[,low])$statistic
+   pval<-rowTtest(res[,high],res[,low])$p.value
+  sig.ps<-which(p.adjust(pval)<pvalthresh)
+  ret<-sig[sig.ps]
+  names(ret)<-rownames(res)[sig.ps]
+
+  if(useEntrez){
+    library(org.Hs.eg.db)
+
+      #we have to map back to HUGO
+      x <- org.Hs.egSYMBOL2EG
+      # Get the entrez gene identifiers that are mapped to a gene symbol
+      mapped_genes <- AnnotationDbi::mappedkeys(x)
+      # Convert to a list
+      xx <- AnnotationDbi::as.list(x[mapped_genes])
+      inds=match(names(ret),xx)
+      names(ret)<-names(xx)[inds]
+
+
+  }
+
+  return(ret)
 }
 
 

@@ -7,7 +7,7 @@
 
 
 library(devtools)
-load_all('/Users/sgosline/code/PCSF')
+load_all('/Users/sgosline/code/PCSF',recompile=FALSE)
 #library(PCSF)
 
 #' \code{loadDrugGraph} Identifies drugs in a
@@ -77,7 +77,7 @@ getDrugNames <- function(drug_ids){
   require(synapseClient)
   synapseLogin()
   prefix="select * from syn11831632 where internal_id='"
-  query=paste(prefix,paste(drug_names,collapse="' OR internal_id='"),sep='')
+  query=paste(prefix,paste(drug_ids,collapse="' OR internal_id='"),sep='')
   res <- synTableQuery(paste(query,"'",sep=''))@values
   return(res)
 }
@@ -93,17 +93,28 @@ getDrugNames <- function(drug_ids){
 buildNetwork <- function(drug.graph){
 
   ##add weights
-  edge_attr(drug.graph,"weight")<-edge_attr(drug.graph,"mean_pchembl")
+#  edge_attr(drug.graph,"weight")<-edge_attr(drug.graph,"mean_pchembl")
+  require(PCSF)
 
+  rank.norm<-function(x){
+    rank(x)/length(x)
+  }
+
+  red.graph<-delete_edges(drug.graph,E(drug.graph)[which(is.na(E(drug.graph)$mean_pchembl))])
+  edge_attr(red.graph,"weight")<-rank.norm(edge_attr(red.graph,"mean_pchembl"))
 
   ##load STRING
   data("STRING")
+
 
   ##build interactome
   ppi <- construct_interactome(STRING)
 
   ##now merge networks
-  combined.graph<-as.undirected(drug.graph)+ppi
+  u.drug.graph <- as.undirected(red.graph)
+  combined.df<-rbind(igraph::as_data_frame(ppi),igraph::as_data_frame(u.drug.graph)[,c('from','to','weight')])
+  combined.graph <- igraph::graph_from_data_frame(combined.df,directed=FALSE)
+
 
   return(combined.graph)
 }
@@ -114,7 +125,7 @@ buildNetwork <- function(drug.graph){
 #' @keywords
 #' @export
 #' @examples
-#' @return
+#' @return drug names
 #'
 getDrugsFromGraph <-function(drug.graph){
   #the goal of this is to extract the drugs from the graph,
@@ -122,3 +133,26 @@ getDrugsFromGraph <-function(drug.graph){
   names(which(degree(drug.graph,mode="in")==0))
 
 }
+
+#' \code{runPcsfWithParams} Identifies drugs in a
+#' @param combined.graph
+#' @param terminals
+#' @param dummies
+#' @param w
+#' @param b
+#' @param mu
+#' @keywords
+#' @export
+#' @examples
+#' @return
+runPcsfWithParams <- function(ppi,terminals, dummies, w=2, b=1, mu=5e-04){
+  res <- PCSF(ppi,terminals,w,b,mu,dummies)
+
+  drug.inds<-which(V(res)$name%in%dummies)
+  V(res)$type[drug.inds]<-'Compound'
+  V(res)$name[drug.inds]<-getDrugNames(V(res)$name[drug.inds])[,2]
+  return(res)
+
+}
+
+
