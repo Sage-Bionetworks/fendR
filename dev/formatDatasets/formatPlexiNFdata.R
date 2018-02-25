@@ -11,7 +11,7 @@ par.id<-'syn8282028'
 #drug sensitivity
 ncat.file="https://raw.githubusercontent.com/sgosline/pnfCellLines/master/bin/ncatsSingleAgentScreens.R"
 source(ncat.file)
-this.file='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/dev/formatPlexiNFdata.R?token=ABwyOt9lkMgjvEtDEf408VHcaDvjCCUXks5Yt1v2wA%3D%3D'
+this.file='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/dev/formatDatasets/formatPlexiNFdata.R?token=ABwyOt9lkMgjvEtDEf408VHcaDvjCCUXks5Yt1v2wA%3D%3D'
 
 targs<-ncatsDrugTargets()
 colnames(targs)<-c("Phenotype","Gene")
@@ -39,7 +39,7 @@ write.table(maxr,'ncatsNtapMaxrTidied.tsv',sep='\t',row.names=F,col.names=T)
 #now write all to directory and upload to synapse
 
 #RNA-Seq
-rna.seq.data<-read.table(synGet('syn7124098')@filePath,header=T,as.is=T)
+rna.seq.data<-read.table(synapser::synGet('syn7124098')$path,header=T,as.is=T)
 rna.seq.data<-data.frame(rna.seq.data)
 rna.seq.data$Gene<-rownames(rna.seq.data)
 rna.seq<-tidyr::gather(rna.seq.data,Sample,Value,1:(ncol(rna.seq.data)-1))
@@ -47,7 +47,7 @@ rna.seq$Sample<-sapply(as.character(rna.seq$Sample),function(x) gsub("..mixed.cl
 write.table(rna.seq,'ntapRnaSeqTpmTidied.tsv',sep='\t',row.names=F,col.names=T)
 
 #mutation data
-mut.data<-read.table(synGet('syn6174638')@filePath,sep='\t',header=T,as.is=T)
+mut.data<-read.table(synapser::synGet('syn6174638')$path,sep='\t',header=T,as.is=T)
 red.mut.data<-subset(mut.data,KnownGeneExonFunction%in%c("nonsynonymous SNV","stoploss SNV",'stopgainSNV','frameshift deletion','frameshiftinsertion'))
 md.mat<-reshape2::acast(red.mut.data,KnownGeneGeneName~CellLine)
 md.mat[which(md.mat>0,arr.ind=T)]<-1
@@ -60,4 +60,4 @@ write.table(md,'ntapMutDataTidied.tsv',sep='\t',row.names=F,col.names=T)
 
 file.list=c("ncatsDrugTargetTidied.tsv",'ncatsNtapTaucTidied.tsv','ncatsNtapLac50Tidied.tsv','ncatsNtapMaxrTidied.tsv','ntapRnaSeqTpmTidied.tsv','ntapMutDataTidied.tsv')
 for (file in file.list)
-  synStore(File(file,parentId=par.id),executed=list(list(url=ncat.file),list(url=this.file)))
+  synapser::synStore(synapser::File(file,parentId=par.id),activity=synapser::Activity(used=ncat.file,executed=this.file))

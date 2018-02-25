@@ -15,13 +15,9 @@ library(tidyverse)
 #' @export
 #' @examples
 #' @return expression set
-loadEset<-function(rna.seq.data,pheno.file,useEntrez=TRUE){
+loadEset<-function(rna.data,pheno.data,useEntrez=TRUE){
   library(org.Hs.eg.db)
 
-  #get data files
-  rna.data<-loadSampleData(rna.seq.data)
-
-  pheno.data<-loadPhenotypeData(pheno.file)
   pheno.data$Phenotype <- tolower(pheno.data$Phenotype)
 
   samples<-intersect(rna.data$Sample,pheno.data$Sample)
@@ -108,7 +104,6 @@ runViperOnDset <- function(eset){
 #' @export
 #' @examples
 #' @return viper object
-
 getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE){
 
   #TODO: increase number of permuations! this is too low!!
