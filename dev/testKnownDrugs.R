@@ -7,13 +7,9 @@
 ##
 library(fendR)
 
-rna.seq.data<-system.file('SANGER_brainarray_rma_expr.tsv.gz', package='fendR')
-pheno.file<-system.file('SANGER_dose_response_AUC.tsv',package='fendR')
-
-
-rna.seq.data<-system.file('CCLE_medianZscore_rnaSeq_ucscGenesFromCbioPortal.tsv.gz', package='fendR')
-pheno.file<-system.file('CTRP_v20_AUC_vales_by_drug.tsv',package='fendR')
-
+eset.file='syn11912257'
+viper.file='syn11910413'
+thresholds=c(0.25,0.75)
 
 #' \code{findDrugsWithTargetsAndGenes} Identifies drugs in a
 #' @param rna.seq.data Tidied rna seq file
@@ -23,22 +19,24 @@ pheno.file<-system.file('CTRP_v20_AUC_vales_by_drug.tsv',package='fendR')
 #' @examples
 #' @return
 #'
-findDrugsWithTargetsAndGenes <-function(rna.seq.data,
-    pheno.file,
-  viper.file,
+findDrugsWithTargetsAndGenes <-function(eset.file,
+    viper.file,
     thresholds=c(0.25,0.75)){
 
   library(synapser)
   synLogin()
 
   #load eset **from SYNAPSE*
-  eset<-loadEset(synGet(rna.seq.data)$path,synGet(pheno.file)$path,useEntrez=TRUE)
-  pset<-addResponseClass(eset,thresholds)
+ # eset<-loadEset(synGet(rna.seq.data)$path,synGet(pheno.file)$path,useEntrez=TRUE)
+ #
 
+  eset<-readRDS(synGet(eset.file)$path)
+  pset<-addResponseClass(eset,thresholds)
   #get drugs that have target ids
   matched.ids <- getDrugIds(varLabels(pset))
 
   library(viper)
+
   #get those with significantly differentially expressed genes
   all.pvals<-sapply(tolower(matched.ids$drugs),function(drug) rowTtest(pset, pheno=drug,group1='High',group2='Low')$p.value)
 
@@ -51,8 +49,9 @@ findDrugsWithTargetsAndGenes <-function(rna.seq.data,
   drug.graph <- loadDrugGraph()
   combined.graph <-buildNetwork(drug.graph)
   all.drugs <- getDrugsFromGraph(drug.graph)
+  tested.drugs <- matched.ids$ids
 
-  v.obj <- loadRDS(synGet(viper.file)$path)
+  v.obj <- readRDS(synGet(viper.file)$path)
 
   #TODO: make this multi-core, possibly break into smaller functions
   all.res <- lapply(nz.sig,function(drug,pset,all.drugs){
