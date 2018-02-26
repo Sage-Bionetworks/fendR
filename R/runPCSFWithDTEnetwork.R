@@ -79,11 +79,11 @@ getDrugIds <- function(drug_names){
 #' @return
 #'
 getDrugNames <- function(drug_ids){
-  require(synapseClient)
-  synapseLogin()
+  require(synapser)
+  synLogin()
   prefix="select * from syn11831632 where internal_id='"
   query=paste(prefix,paste(drug_ids,collapse="' OR internal_id='"),sep='')
-  res <- synTableQuery(paste(query,"'",sep=''))@values
+  res <- as.data.frame(synTableQuery(paste(query,"'",sep='')))
   return(res)
 }
 

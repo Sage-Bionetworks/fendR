@@ -4,7 +4,7 @@
 \alias{loadEset}
 \title{\code{loadEset} takes the rna seq and pheno test files and builds expression set}
 \usage{
-loadEset(rna.seq.data, pheno.file, useEntrez = TRUE)
+loadEset(rna.data, pheno.data, useEntrez = TRUE)
 }
 \arguments{
 \item{rna.seq.data}{Tidied rna seq file}

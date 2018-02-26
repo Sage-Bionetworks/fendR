@@ -16,9 +16,9 @@
 #' @return tidied data frame with columns 'Gene','Sample' and 'Value'
 loadSampleData <- function(fname){
   if(length(grep("gz$",fname))>0)
-    tab<-read.table(gzfile(fname),stringsAsFactors =FALSE,check.names=F)
+    tab<-read.table(gzfile(fname),stringsAsFactors =FALSE,check.names=F,header=T)
   else
-    tab<-read.table(fname,stringsAsFactors =FALSE,check.names=F)
+    tab<-read.table(fname,stringsAsFactors =FALSE,check.names=F,header=T)
   tab$Gene<-rownames(tab)
   res<-NULL
   try(
