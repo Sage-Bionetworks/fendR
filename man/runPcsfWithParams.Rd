@@ -4,7 +4,8 @@
 \alias{runPcsfWithParams}
 \title{\code{runPcsfWithParams} Identifies drugs in a}
 \usage{
-runPcsfWithParams(ppi, terminals, dummies, w = 2, b = 1, mu = 5e-04)
+runPcsfWithParams(ppi, terminals, dummies, w = 2, b = 1, mu = 5e-04,
+  doRand = FALSE)
 }
 \description{
 \code{runPcsfWithParams} Identifies drugs in a
