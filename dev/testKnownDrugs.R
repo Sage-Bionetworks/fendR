@@ -7,9 +7,7 @@
 ##
 library(fendR)
 
-eset.file='syn11912257'
-viper.file='syn11910413'
-thresholds=c(0.25,0.75)
+
 
 #' \code{findDrugsWithTargetsAndGenes} Identifies drugs in a
 #' @param rna.seq.data Tidied rna seq file
@@ -29,7 +27,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
 
   library(synapser)
   synLogin()
-
+  require(parallel)
   #load eset **from SYNAPSE**
  # eset<-loadEset(synGet(rna.seq.data)$path,synGet(pheno.file)$path,useEntrez=TRUE)
  #
@@ -40,6 +38,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   #get drugs that have target ids
   matched.ids <- getDrugIds(varLabels(pset))
   tested.drugs <- matched.ids$ids
+  #print(matched.ids)
 
   if(!missing(drug.name)){
     inds <- which(tolower(matched.ids$drugs)%in%tolower(drug.name))
@@ -63,19 +62,20 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
 
   v.obj <- readRDS(synGet(viper.file)$path)
 
-
   #TODO: make this multi-core, possibly break into smaller functions
-  all.res <- lapply(nz.sig,function(drug,pset,all.drugs,w,b,mu){
+  all.res <- mclapply(nz.sig,function(drug,pset,all.drugs,w,b,mu){
     #create viper signature from high vs. low
+    print(drug)
      high = which(pData(pset)[[drug]] =='High')
      low = which(pData(pset)[[drug]]=='Low')
+  print(high)
     v.res<-getViperForDrug(v.obj,high,low,0.1,TRUE)
-
+    print(v.res)
     pcsf.res <-runPcsfWithParams(ppi=combined.graph,terminals=abs(v.res),dummies=all.drugs,w=w,b=b,mu=mu,doRand=TRUE)
 
    drug.res <- V(pcsf.res)$name[which(V(pcsf.res)$type=='Compound')]
     #now get average tamimoto distance between that drug and drug of interest
-    #print(paste("Selected",length(drug.res),'drugs in the graph'))
+    print(paste("Selected",length(drug.res),'drugs in the graph'))
 
     ##collect stats, store in synapse table
     list(network=pcsf.res,
@@ -86,7 +86,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
       viperProts=names(v.res),
       inputDrug=drug)
 
-  },pset,all.drugs=tested.drugs,w=w,b=b,mu=mu)
+  },pset,all.drugs=tested.drugs,w=w,b=b,mu=mu,mc.cores=12)
 
   #TODO: evaluate all graphs with reference to network
   all.res
@@ -122,18 +122,21 @@ plotGenesByDrug<-function(eset,
 }
 
 
-all.res<-findDrugsWithTargetsAndGenes(eset.file='syn11912257',
-    viper.file='syn11910413',
-  thresholds=c(0.25,0.75),
-  drug.name=c('parthenolide','gefitinib','selumetinib'))
-
-trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,viperFileId){
+#'
+#'trackNetworkStats takes a list of results from the drug test and shares them on synapse
+#'@param pcsf.res.list
+#'@param synTableId
+#'@param esetFileId
+#'@param viperFileId
+#'@param thresholds
+#'
+trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,viperFileId,thresholds){
   require(synapser)
 
   pcsf.parent='syn12000478'
   this.script='https://github.com/Sage-Bionetworks/fendR/blob/master/dev/testKnownDrugs.R'
   #decouple pcsf.res.list into data frame
-  fin<-lapply(pcsf.res.list,function(x){
+  fin<-mclapply(pcsf.res.list,function(x,thresholds){
     #first store network
     network=x[['network']]
     drug=x[['inputDrug']]
@@ -143,11 +146,32 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,vi
     fname=paste(paste(esetFileId,viperFileId,drug,w,b,mu,sep='_'),'.rds',sep='')
     saveRDS(network,file=fname)
     res=synStore(File(fname,parentId=pcsf.parent),used=c(esetFileId,viperFileId),executed=this.script)
-     upl<-data.frame(`Input Drug`=drug,w=w,beta=b,mu=mu,`Viper Proteins`=paste(sort(x$viperProts),collapse=','),`Output Drugs`=paste(sort(x$drugs),collapse=','),`Original eSet`=esetFileId,`Original metaViper`=viperFileId,`mean TMD`=0,`PCSF Result`=res$properties$id,check.names=F)
+     upl<-data.frame(`Input Drug`=drug,w=w,beta=b,mu=mu,
+                     `Viper Proteins`=paste(sort(x$viperProts),collapse=','),
+                     `Output Drugs`=paste(sort(x$drugs),collapse=','),
+                     `Original eSet`=esetFileId,`Original metaViper`=viperFileId,
+                     `mean TMD`=0,`PCSF Result`=res$properties$id,
+                     `Mean Jaccard Distance`=0,
+                     Quantiles=paste(thresholds,collapse=','),
+                     check.names=F)
 
      tres<-synStore(Table(synTableId,upl))
-  })
+  },thresholds,mc.cores=12)
 
   #store as synapse table
 
 }
+
+####first run: ccle data, first last/quarter:
+eset.file='syn11912257'
+viper.file='syn11910413'
+thresholds=c(0.25,0.75)
+
+all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
+                                      viper.file=viper.file,
+                                      thresholds=thresholds)
+
+#  drug.name=c('parthenolide','gefitinib','selumetinib'))
+
+trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds)
+
