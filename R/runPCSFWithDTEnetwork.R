@@ -5,15 +5,10 @@
 #
 #---------------------------------------------------------
 
-
-
 library(PCSF)
 ##make sure to install PCSF from her
 ##library(devtools)
 ##install_github("sgosline/PCSF",username='sgosline')
-
-
-#library(PCSF)
 
 #' \code{loadDrugGraph} Identifies drugs in a
 #' @keywords
@@ -54,7 +49,7 @@ getDrugs <-function(drug.graph){
 getDrugIds <- function(drug_names){
   require(synapser)
   synLogin()
-
+  require(dplyr)
   #remove problematic/combo screens
   parens=grep("(",drug_names,fixed=T)
   if(length(parens)>0)
@@ -62,7 +57,7 @@ getDrugIds <- function(drug_names){
 
   prefix="select * from syn11831632 where common_name='"
   query=paste(prefix,paste(drug_names,collapse="' OR common_name='"),sep='')
-  res <- as.data.frame(syanpser::synTableQuery(paste(query,"'",sep='')))
+  res <- synapser::synTableQuery(paste(query,"'",sep=''))$asDataFrame()%>%dplyr::select(-ROW_ID,-ROW_VERSION)
 
   print(paste("Found",nrow(res),'drug internal ids for',length(drug_names),'common names'))
   colnames(res) <- c("ids","drugs")
@@ -80,10 +75,13 @@ getDrugIds <- function(drug_names){
 #'
 getDrugNames <- function(drug_ids){
   require(synapser)
+  require(dplyr)
   synLogin()
   prefix="select * from syn11831632 where internal_id='"
   query=paste(prefix,paste(drug_ids,collapse="' OR internal_id='"),sep='')
-  res <- as.data.frame(synTableQuery(paste(query,"'",sep='')))
+  res <- synapser::synTableQuery(paste(query,"'",sep=''))$asDataFrame()%>%dplyr::select(-ROW_ID,-ROW_VERSION)
+  colnames(res) <- c("ids","drugs")
+
   return(res)
 }
 
@@ -146,12 +144,17 @@ getDrugsFromGraph <-function(drug.graph){
 #' @param w
 #' @param b
 #' @param mu
+#' @param doRand
 #' @keywords
 #' @export
 #' @examples
 #' @return
-runPcsfWithParams <- function(ppi,terminals, dummies, w=2, b=1, mu=5e-04){
-  res <- PCSF(ppi,terminals,w,b,mu,dummies)
+runPcsfWithParams <- function(ppi,terminals, dummies, w=2, b=1, mu=5e-04,doRand=FALSE){
+
+  if(doRand)
+    res <- PCSF_rand(ppi,terminals,w=w,b=b,mu=mu,dummies=dummies,n=100,r=1)
+  else
+    res <- PCSF(ppi,terminals,w=w,b=b,mu=m,dummies=dummies)
 
   drug.inds<-which(V(res)$name%in%dummies)
   V(res)$type[drug.inds]<-'Compound'
