@@ -6,7 +6,7 @@
 # to identify known drugs that affect cell viability
 ##
 library(fendR)
-
+library(plyr)
 
 
 #' \code{findDrugsWithTargetsAndGenes} Identifies drugs in a
@@ -27,13 +27,19 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
 
   library(synapser)
   synLogin()
-  require(parallel)
+
+  require(doParallel)
+  require(Biobase)
+  cl <- makeCluster(12)
+
+  registerDoParallel(cl)
+    #require(parallel)
   #load eset **from SYNAPSE**
  # eset<-loadEset(synGet(rna.seq.data)$path,synGet(pheno.file)$path,useEntrez=TRUE)
  #
 
   eset<-readRDS(synGet(eset.file)$path)
-  pset<-addResponseClass(eset,thresholds)
+  pset<-fendR::addResponseClass(eset,thresholds)
 
   #get drugs that have target ids
   matched.ids <- getDrugIds(varLabels(pset))
@@ -48,7 +54,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   library(viper)
 
   #get those with significantly differentially expressed genes
-  all.pvals<-sapply(tolower(matched.ids$drugs),function(drug) rowTtest(pset, pheno=drug,group1='High',group2='Low')$p.value)
+  all.pvals<-sapply(tolower(matched.ids$drugs),function(drug) viper::rowTtest(pset, pheno=drug,group1='High',group2='Low')$p.value)
 
   sig.genes<-apply(all.pvals,2,function(x) length(which(p.adjust(x)<0.05)))
 
@@ -56,26 +62,35 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   print(paste("found",length(nz.sig),'drugs at least 5 differentially expressed genes'))
 
   #build network
-  drug.graph <- loadDrugGraph()
-  combined.graph <-buildNetwork(drug.graph)
-  all.drugs <- getDrugsFromGraph(drug.graph)
+  drug.graph <- fendR::loadDrugGraph()
+  combined.graph <-fendR::buildNetwork(drug.graph)
+  all.drugs <- fendR::getDrugsFromGraph(drug.graph)
 
   v.obj <- readRDS(synGet(viper.file)$path)
 
+  fname=paste(paste(eset.file,viper.file,w,b,mu,sep='_'),'.rds',sep='')
+
   #TODO: make this multi-core, possibly break into smaller functions
-  all.res <- mclapply(nz.sig,function(drug,pset,all.drugs,w,b,mu){
+  all.res <- llply(nz.sig,.fun=function(drug,pset,all.drugs,w,b,mu,fname){
     #create viper signature from high vs. low
     print(drug)
-     high = which(pData(pset)[[drug]] =='High')
-     low = which(pData(pset)[[drug]]=='Low')
-  print(high)
-    v.res<-getViperForDrug(v.obj,high,low,0.1,TRUE)
-    print(v.res)
-    pcsf.res <-runPcsfWithParams(ppi=combined.graph,terminals=abs(v.res),dummies=all.drugs,w=w,b=b,mu=mu,doRand=TRUE)
+     high = which(Biobase::pData(pset)[[drug]] =='High')
+     low = which(Biobase::pData(pset)[[drug]]=='Low')
+  #print(high)
 
-   drug.res <- V(pcsf.res)$name[which(V(pcsf.res)$type=='Compound')]
-    #now get average tamimoto distance between that drug and drug of interest
-    print(paste("Selected",length(drug.res),'drugs in the graph'))
+  newf=paste(drug,fname,sep='_')
+  v.res<-fendR::getViperForDrug(v.obj,high,low,0.1,TRUE)
+
+  if(file.exists(newf)){
+    pcsf.res<-readRDS(newf)
+  } else{
+   # print(v.res)
+    pcsf.res <-fendR::runPcsfWithParams(ppi=combined.graph,terminals=abs(v.res),dummies=all.drugs,w=w,b=b,mu=mu,doRand=TRUE)
+    saveRDS(pcsf.res,file=newf)
+
+    }
+  drug.res <- igraph::V(pcsf.res)$name[which(igraph::V(pcsf.res)$type=='Compound')]
+  print(paste("Selected",length(drug.res),'drugs in the graph'))
 
     ##collect stats, store in synapse table
     list(network=pcsf.res,
@@ -84,10 +99,12 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
       b=b,
       mu=mu,
       viperProts=names(v.res),
-      inputDrug=drug)
+      inputDrug=drug,
+      file=newf)
 
-  },pset,all.drugs=tested.drugs,w=w,b=b,mu=mu,mc.cores=12)
+  },pset,all.drugs=tested.drugs,w=w,b=b,mu=mu,fname,.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
 
+  stopCluster(cl)
   #TODO: evaluate all graphs with reference to network
   all.res
 
@@ -136,16 +153,23 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,vi
   pcsf.parent='syn12000478'
   this.script='https://github.com/Sage-Bionetworks/fendR/blob/master/dev/testKnownDrugs.R'
   #decouple pcsf.res.list into data frame
-  fin<-mclapply(pcsf.res.list,function(x,thresholds){
+
+  require(doParallel)
+  cl <- makeCluster(12)
+
+  registerDoParallel(cl)
+
+
+  fin<-llply(pcsf.res.list,.fun=function(x,thresholds){
     #first store network
     network=x[['network']]
     drug=x[['inputDrug']]
     w=x[['w']]
     b=x[['b']]
     mu=x[['mu']]
-    fname=paste(paste(esetFileId,viperFileId,drug,w,b,mu,sep='_'),'.rds',sep='')
-    saveRDS(network,file=fname)
-    res=synStore(File(fname,parentId=pcsf.parent),used=c(esetFileId,viperFileId),executed=this.script)
+    fname=x[['file']]
+
+    res=synapser::synStore(File(fname,parentId=pcsf.parent),used=c(esetFileId,viperFileId),executed=this.script)
      upl<-data.frame(`Input Drug`=drug,w=w,beta=b,mu=mu,
                      `Viper Proteins`=paste(sort(x$viperProts),collapse=','),
                      `Output Drugs`=paste(sort(x$drugs),collapse=','),
@@ -155,9 +179,9 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,vi
                      Quantiles=paste(thresholds,collapse=','),
                      check.names=F)
 
-     tres<-synStore(Table(synTableId,upl))
-  },thresholds,mc.cores=12)
-
+     tres<-synapser::synStore(Table(synTableId,upl))
+  },thresholds,.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
+  stopCluster(cl)
   #store as synapse table
 
 }
@@ -169,9 +193,8 @@ thresholds=c(0.25,0.75)
 
 all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
                                       viper.file=viper.file,
-                                      thresholds=thresholds)
-
-#  drug.name=c('parthenolide','gefitinib','selumetinib'))
+                                      thresholds=thresholds)#,
+  #                                    drug.name=c('parthenolide','gefitinib','selumetinib'))
 
 trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds)
 

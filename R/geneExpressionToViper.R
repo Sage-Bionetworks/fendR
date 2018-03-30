@@ -113,8 +113,8 @@ getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE){
 #  null.sig <- ttestNull(eset, pheno=drug,group1='High',group2='Low',per=100)
  # vsig <-viperSignature(sig,null.sig,method='ttest')
 
-   sig <-rowTtest(v.res[,high],v.res[,low])$statistic
-   pval<-rowTtest(v.res[,high],v.res[,low])$p.value
+   sig <-viper::rowTtest(v.res[,high],v.res[,low])$statistic
+   pval<-viper::rowTtest(v.res[,high],v.res[,low])$p.value
   sig.ps<-which(p.adjust(pval)<pvalthresh)
   ret<-sig[sig.ps]
   names(ret)<-rownames(v.res)[sig.ps]
