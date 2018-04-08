@@ -154,7 +154,7 @@ runPcsfWithParams <- function(ppi,terminals, dummies, w=2, b=1, mu=5e-04,doRand=
   if(doRand)
     res <- PCSF::PCSF_rand(ppi,terminals,w=w,b=b,mu=mu,dummies=dummies,n=100,r=1)
   else
-    res <- PCSF::PCSF(ppi,terminals,w=w,b=b,mu=m,dummies=dummies)
+    res <- PCSF::PCSF(ppi,terminals,w=w,b=b,mu=mu,dummies=dummies)
 
   drug.inds<-which(V(res)$name%in%dummies)
   V(res)$type[drug.inds]<-'Compound'
