@@ -12,12 +12,17 @@ viper.file='syn11910413'
 thresholds=c(0.25,0.75)
 
 #' \code{findDrugsWithTargetsAndGenes} Identifies drugs in a
-#' @param rna.seq.data Tidied rna seq file
-#' @param pheno.file Tidied drug response
+#' @param eset.file Expression set with expression and phenotype data
+#' @param viper.file Viper file with networks for all phenotypes
+#' @param drug.name
+#' @param thresholds
+#' @param w
+#' @param b
+#' @param mu
 #' @keywords
 #' @export
 #' @examples
-#' @return
+#' @return list of network result objects
 #'
 findDrugsWithTargetsAndGenes <-function(eset.file,
     viper.file,
@@ -98,6 +103,9 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
 #'plotGenesByDrug
 #'Ranks cell lines by drug efficacy and then plots expression of
 #'genes in gene list
+#'@param eset
+#'@param protMat
+#'@param geneList
 plotGenesByDrug<-function(eset,
     protMat,
     geneList,
@@ -122,10 +130,6 @@ plotGenesByDrug<-function(eset,
 }
 
 
-all.res<-findDrugsWithTargetsAndGenes(eset.file='syn11912257',
-    viper.file='syn11910413',
-  thresholds=c(0.25,0.75),
-  drug.name=c('parthenolide','gefitinib','selumetinib'))
 
 trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,viperFileId){
   require(synapser)
@@ -151,3 +155,9 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,vi
   #store as synapse table
 
 }
+
+
+all.res<-findDrugsWithTargetsAndGenes(eset.file='syn11912257',
+  viper.file='syn11910413',
+  thresholds=c(0.25,0.75),
+  drug.name=c('parthenolide','gefitinib','selumetinib'))
