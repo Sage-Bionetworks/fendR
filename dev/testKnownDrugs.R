@@ -9,12 +9,17 @@ library(fendR)
 library(plyr)
 
 #' \code{findDrugsWithTargetsAndGenes} Identifies drugs in a
-#' @param rna.seq.data Tidied rna seq file
-#' @param pheno.file Tidied drug response
+#' @param eset.file Expression set with expression and phenotype data
+#' @param viper.file Viper file with networks for all phenotypes
+#' @param drug.name
+#' @param thresholds
+#' @param w
+#' @param b
+#' @param mu
 #' @keywords
 #' @export
 #' @examples
-#' @return
+#' @return list of network result objects
 #'
 findDrugsWithTargetsAndGenes <-function(eset.file,
     viper.file,
@@ -114,6 +119,9 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
 #'plotGenesByDrug
 #'Ranks cell lines by drug efficacy and then plots expression of
 #'genes in gene list
+#'@param eset
+#'@param protMat
+#'@param geneList
 plotGenesByDrug<-function(eset,
     protMat,
     geneList,
@@ -136,6 +144,7 @@ plotGenesByDrug<-function(eset,
       main=paste('Response to',drug),filename=fname)
 
 }
+
 
 
 #'
