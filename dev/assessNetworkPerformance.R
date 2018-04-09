@@ -8,7 +8,7 @@
 require(synapser)
 require(ggplot2)
 library(fendR)
-this.script=''
+this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/dev/assessNetworkPerformance.R?token=ABwyOjNTIyrNV8HIeC66DIGnQWX90Uv1ks5a1M1-wA%3D%3D'
 
 #'
 #'we want to compute the tanimoto distance between the proposed target
