@@ -13,7 +13,7 @@ this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/dev
 #'
 #'we want to compute the tanimoto distance between the proposed target
 #'and the targets that were identified
-computeTMDistance <-function(synTableId){
+computeTMDistance <-function(synTableId="syn12000477",parId='syn12104372'){
 
 
 }
@@ -22,8 +22,9 @@ computeTMDistance <-function(synTableId){
 #'
 #' we should also compute the overlap of predicted targets
 #'
-computeTargetOverlap <-function(synTableId){
+computeTargetOverlap <-function(synTableId="syn12000477",parId='syn12104372'){
 
+    drug.targs<-getDrugTargets()
 }
 
 
@@ -45,6 +46,9 @@ drugDistributionByParameters <- function(synTableId="syn12000477",parId='syn1210
 
 #'
 #'general function to get tidied table of drug names by parameters
+#'@param synTableID table id of pcsf output to collect
+#'@return tidied data frame of drug information
+#'@export
 getSelectedDrugByParameter <-function(synTableId="syn12000477"){
   require(tidyr)
   synapser::synLogin()
