@@ -54,7 +54,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   }
 
   library(viper)
-  v.obj <- readRDS(synGet(viper.file)$path)
+  v.obj <- readRDS(synapser::synGet(viper.file)$path)
 
   matched.drugs <- which(sapply(toupper(varLabels(pset)),function(x) unlist(strsplit(x,split='_'))[1])%in%matched.ids$drugs)
 
@@ -62,9 +62,10 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   all.vprots<-sapply(varLabels(pset)[matched.drugs],function(drug){
     high = which(Biobase::pData(pset)[[drug]] =='High')
     low = which(Biobase::pData(pset)[[drug]]=='Low')
+    print(paste("found",length(high),'high and',length(low),'low samples for',drug,sep=' '))
     fendR::getViperForDrug(v.obj,high,low,0.1,TRUE)
   })
-  names(all.vprots)<-tolower(varLabel(pset)[matched.drugs])
+  names(all.vprots)<-tolower(varLabels(pset)[matched.drugs])
 
  # all.pvals<-sapply(tolower(matched.ids$drugs),function(drug) viper::rowTtest(pset, pheno=drug,group1='High',group2='Low')$p.value)
 #  sig.genes<-apply(all.pvals,2,function(x) length(which(p.adjust(x)<0.05)))
