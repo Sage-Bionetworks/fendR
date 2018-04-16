@@ -64,7 +64,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
     low = which(Biobase::pData(pset)[[drug]]=='Low')
     fendR::getViperForDrug(v.obj,high,low,0.1,TRUE)
   })
-  names(all.vprots)<-tolower(varLabel(pset)[matched.drugs])
+  names(all.vprots)<-tolower(varLabels(pset)[matched.drugs])
 
  # all.pvals<-sapply(tolower(matched.ids$drugs),function(drug) viper::rowTtest(pset, pheno=drug,group1='High',group2='Low')$p.value)
 #  sig.genes<-apply(all.pvals,2,function(x) length(which(p.adjust(x)<0.05)))
@@ -105,7 +105,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
       b=b,
       mu=mu,
       viperProts=names(v.res),
-      inputDrug=drug,
+      inputDrug=unlist(strsplit(drug,split='_'))[1],
       file=newf)
 
   },all.drugs=tested.drugs,all.vprots,w=w,b=b,mu=mu,fname,mc.cores=32)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
@@ -203,7 +203,15 @@ viper.file='syn11910414'
 for(w in c(2,3,4,5)){
  for(b in c(1,2,5,10)){
   for(mu in c(5e-05,5e-04,5e-03,5e-02)){
-  thresholds=c(0.2,0.8)
+  thresholds=c(0.1,0.9)
+  all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
+                                        viper.file=viper.file,
+                                        thresholds=thresholds,
+                                        w=w,b=b,mu=mu)#,
+  #                                    drug.name=c('parthenolide','gefitinib','selumetinib'))
+  trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds)
+
+    thresholds=c(0.2,0.8)
 
   all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
                                       viper.file=viper.file,
