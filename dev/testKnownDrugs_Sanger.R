@@ -77,8 +77,8 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   combined.graph <-fendR::buildNetwork(drug.graph)
   all.drugs <- fendR::getDrugsFromGraph(drug.graph)
 
-  fname=paste(paste(eset.file,viper.file,w,b,mu,sep='_'),'.rds',sep='')
- #print(names(all.vprots)[nz.sig])
+  fname=paste(paste(eset.file,viper.file,w,b,mu,paste(thresholds,collapse='_'),sep='_'),'.rds',sep='')
+  #print(names(all.vprots)[nz.sig])
   #TODO: make this multi-core, possibly break into smaller functions
   all.res <- mclapply(names(all.vprots)[nz.sig],function(drug,all.vprots,all.drugs,w,b,mu,fname){
     #create viper signature from high vs. low
@@ -210,6 +210,7 @@ for(w in c(2,3,4,5)){
                                         w=w,b=b,mu=mu)#,
   #                                    drug.name=c('parthenolide','gefitinib','selumetinib'))
   trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds)
+
 
     thresholds=c(0.2,0.8)
 
