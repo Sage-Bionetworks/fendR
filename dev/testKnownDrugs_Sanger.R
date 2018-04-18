@@ -33,10 +33,8 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   synLogin()
 
   require(parallel)
-  require(doMC)
   require(Biobase)
 #  cl <- makeCluster(nnodes=8)
-  registerDoMC(cores=32)
 
 
   eset<-readRDS(synGet(eset.file)$path)
@@ -109,10 +107,9 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
       inputDrug=unlist(strsplit(drug,split='_'))[1],
       file=newf)
 
-  },all.drugs=tested.drugs,all.vprots,w=w,b=b,mu=mu,fname,mc.cores=32)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
+  },all.drugs=tested.drugs,all.vprots,w=w,b=b,mu=mu,fname,mc.cores=28)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
 
- # stopCluster(cl)
-  #TODO: evaluate all graphs with reference to network
+  names(all.res)<-names(all.vprots)[nz.sig]
   all.res
 
 }
@@ -165,13 +162,13 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12104377',esetFileId,vi
   this.script='https://github.com/Sage-Bionetworks/fendR/blob/master/dev/testKnownDrugs_Sanger.R'
   #decouple pcsf.res.list into data frame
 
-  require(doMC)
+#  require(doMC)
 #  cl <- makeCluster(nnodes=8)
+  require(parallel)
+ # registerDoMC(cores=28)
 
-  registerDoMC(cores=32)
 
-
-  fin<-llply(pcsf.res.list,.fun=function(x,thresholds){
+  fin<-mclapply(pcsf.res.list,function(x,thresholds){
     #first store network
     network=x[['network']]
     drug=x[['inputDrug']]
@@ -181,7 +178,7 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12104377',esetFileId,vi
     fname=x[['file']]
 
     res=synapser::synStore(File(fname,parentId=pcsf.parent),used=c(esetFileId,viperFileId),executed=this.script)
-     upl<-data.frame(`Input Drug`=drug,w=w,beta=b,mu=mu,
+    upl<-data.frame(`Input Drug`=drug,w=w,beta=b,mu=mu,
                      `Viper Proteins`=paste(sort(x$viperProts),collapse=','),
                      `Output Drugs`=paste(sort(x$drugs),collapse=','),
                      `Original eSet`=esetFileId,`Original metaViper`=viperFileId,
@@ -191,7 +188,7 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12104377',esetFileId,vi
                      check.names=F)
 
      tres<-synapser::synStore(Table(synTableId,upl))
-  },thresholds,.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
+  },thresholds,mc.cores=28)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
 #  stopCluster(cl)
   #store as synapse table
 
