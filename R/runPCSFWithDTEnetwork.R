@@ -46,7 +46,7 @@ getDrugs <-function(drug.graph){
 #' @examples
 #' @return
 #'
-getDrugIds <- function(drug_names){
+getDrugIds <- function(drug_names,split){
   require(synapser)
   synLogin()
   require(dplyr)
@@ -55,11 +55,16 @@ getDrugIds <- function(drug_names){
   if(length(parens)>0)
     drug_names=drug_names[-parens]
 
+  if(!missing(split))
+    drug_names2 <- sapply(drug_names,function(x) unlist(strsplit(x,split=split))[1])
+  else
+    drug_names2 <- drug_names
+
   prefix="select * from syn11831632 where common_name='"
-  query=paste(prefix,paste(drug_names,collapse="' OR common_name='"),sep='')
+  query=paste(prefix,paste(drug_names2,collapse="' OR common_name='"),sep='')
   res <- synapser::synTableQuery(paste(query,"'",sep=''))$asDataFrame()%>%dplyr::select(-ROW_ID,-ROW_VERSION)
 
-  print(paste("Found",nrow(res),'drug internal ids for',length(drug_names),'common names'))
+  print(paste("Found",nrow(res),'drug internal ids for',length(drug_names2),'common names'))
   colnames(res) <- c("ids","drugs")
 
   return(res)
@@ -77,12 +82,18 @@ getDrugNames <- function(drug_ids){
   require(synapser)
   require(dplyr)
   synLogin()
-  prefix="select * from syn11831632 where internal_id='"
-  query=paste(prefix,paste(drug_ids,collapse="' OR internal_id='"),sep='')
-  res <- synapser::synTableQuery(paste(query,"'",sep=''))$asDataFrame()%>%dplyr::select(-ROW_ID,-ROW_VERSION)
-  colnames(res) <- c("ids","drugs")
+  prefix="select * from syn11831632 where internal_id in ("
+  #query=paste(prefix,paste(drug_ids,collapse="' OR internal_id='"),sep='')
 
-  return(res)
+  res2<-do.call(rbind,lapply(split(drug_ids,ceiling(seq_along(drug_ids)/50000)),function(x){
+    query=paste(prefix,paste(sapply(x,function(y) paste("'",y,"'",sep='')),collapse=','),')',sep='')
+
+    print(query)
+    res <- synapser::synTableQuery(query)$asDataFrame()%>%dplyr::select(-ROW_ID,-ROW_VERSION)
+    colnames(res) <- c("ids","drugs")
+    res}))
+
+  return(res2)
 }
 
 
@@ -134,6 +145,25 @@ getDrugsFromGraph <-function(drug.graph){
   #the goal of this is to extract the drugs from the graph,
   #which should be the only nodes with an indegree of zero
   names(which(degree(drug.graph,mode="in")==0))
+
+}
+
+#' \code{getDrugTargets} Gets drug target graph and returns table of drug targeets
+#' @param drug.graph
+#' @keywords
+#' @export
+#' @examples
+#' @return tidied dataset
+getDrugTargets <-function(drug.graph){
+
+  drugs <-getDrugsFromGraph(drug.graph)
+  dnames <-getDrugNames(drugs)
+
+  #get drug targets
+  targs<-do.call(c,lapply(split(drug_ids,ceiling(seq_along(drug_ids)/1000)),function(drugs){
+    sapply(igraph::V(drug.graph)[unlist(igraph::adjacent_vertices(drug.graph,as.character(drugs)))],paste,collapse=',')}))
+  drug.tab<-data.frame(dnames,targets=targs)
+  drug.targs
 
 }
 

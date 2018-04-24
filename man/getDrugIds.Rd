@@ -4,7 +4,7 @@
 \alias{getDrugIds}
 \title{\code{getDrugIds} Identifies drugs in a}
 \usage{
-getDrugIds(drug_names)
+getDrugIds(drug_names, split)
 }
 \arguments{
 \item{pheno.file}{Tidied drug response}

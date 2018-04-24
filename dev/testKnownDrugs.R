@@ -75,7 +75,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   combined.graph <-fendR::buildNetwork(drug.graph)
   all.drugs <- fendR::getDrugsFromGraph(drug.graph)
 
-  fname=paste(paste(eset.file,viper.file,w,b,mu,sep='_'),'.rds',sep='')
+  fname=paste(paste(eset.file,viper.file,w,b,mu,paste(thresholds,collapse='_'),sep='_'),'.rds',sep='')
  #print(names(all.vprots)[nz.sig])
   #TODO: make this multi-core, possibly break into smaller functions
   all.res <- mclapply(names(all.vprots)[nz.sig],function(drug,all.vprots,all.drugs,w,b,mu,fname){
@@ -84,7 +84,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   #print(high)
   v.res=all.vprots[[drug]]
   newf=paste(drug,fname,sep='_')
-
+  print(newf)
   if(file.exists(newf)){
     pcsf.res<-readRDS(newf)
   } else{
@@ -200,23 +200,24 @@ viper.file='syn11910413'
 #thresholds=c(0.25,0.75)
 for(w in c(2,3,4,5)){
  for(b in c(1,2,5,10)){
-  for(mu in c(5e-04,5e-03,5e-02)){
+   for(mu in c(5e-03,5e-02)){
+     thresholds=c(0.25,0.75)
+     try(all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
+                                               viper.file=viper.file,
+                                               thresholds=thresholds,
+                                               w=w,b=b,mu=mu))#,
+     #                                    drug.name=c('parthenolide','gefitinib','selumetinib'))
+     try(trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds))
+
   thresholds=c(0.2,0.8)
 
-  all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
+  try(all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
                                       viper.file=viper.file,
                                       thresholds=thresholds,
-                                      w=w,b=b,mu=mu)#,
+                                      w=w,b=b,mu=mu))
+  #,
   #                                    drug.name=c('parthenolide','gefitinib','selumetinib'))
-  trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds)
-
-  thresholds=c(0.25,0.75)
-  all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
-                                        viper.file=viper.file,
-                                        thresholds=thresholds,
-                                        w=w,b=b,mu=mu)#,
-  #                                    drug.name=c('parthenolide','gefitinib','selumetinib'))
-  trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds)
+  try(trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds))
 
 }}}
 
