@@ -8,6 +8,7 @@
 require(synapser)
 require(ggplot2)
 library(fendR)
+require(tidyverse)
 this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/dev/assessNetworkPerformance.R?token=ABwyOjNTIyrNV8HIeC66DIGnQWX90Uv1ks5a1M1-wA%3D%3D'
 
 #'
@@ -40,7 +41,8 @@ drugDistributionByParameters <- function(synTableId="syn12000477",parId='syn1210
 
   fname=paste('drugsSelectedByparameter_',synTableId,'.png',sep='')
   p<-ggplot(icounts)+geom_bar(aes(x=`Output Drugs`,y=`FracSelected`,fill=Params),stat='identity',position='dodge')+scale_fill_viridis_d()+theme(axis.text.x=element_text(angle=90,hjust=1))
-  ggsave(fname,p)
+  ggsave(fname,p,limitsize=FALSE,width = par("din")[1],
+    height = par("din")[2])
   synapser::synStore(File(fname,parentId=parId),used=synTableId,executed=this.script)
 }
 
@@ -54,7 +56,7 @@ getSelectedDrugByParameter <-function(synTableId="syn12000477"){
   synapser::synLogin()
   tab.res <-synapser::synTableQuery(paste("select `Input Drug`,`Output Drugs`,w,beta,mu,Quantiles from",synTableId))$asDataFrame()
 
-  new.res <- tab.res %>%mutate(`Output Drugs`=strsplit(as.character(`Output Drugs`),','))%>%unnest()%>%select(-ROW_ID,-ROW_VERSION)%>%unique()
+  new.res <- tab.res %>%mutate(`Output Drugs`=strsplit(as.character(`Output Drugs`),','))%>%unnest()%>%dplyr::select(-ROW_ID,-ROW_VERSION)%>%unique()
   return(new.res)
 
 }
