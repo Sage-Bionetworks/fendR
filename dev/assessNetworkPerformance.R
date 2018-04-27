@@ -35,12 +35,12 @@ computeTargetOverlap <-function(synTableId="syn12000477",parId='syn12104372'){
 drugDistributionByParameters <- function(synTableId="syn12000477",parId='syn12104372'){
 #what drugs are being selected?
   drug.tab <-getSelectedDrugByParameter(synTableId)
-  new.res<- drug.tab%>%unite("Params", c(mu,beta,w,Quantiles),sep='_')
-  dcounts<-new.res %>%group_by(Params,`Output Drugs`)%>%summarize(`Times Selected`=n())
+  new.res<- drug.tab%>%unite("Params", c(mu,beta,w),sep='_',remove=FALSE)
+  dcounts<-new.res %>%group_by(Params,`Output Drugs`,Quantiles)%>%summarize(`Times Selected`=n())
   icounts <- new.res %>% group_by(Params)%>% summarize(NumInputs=n_distinct(`Input Drug`))%>%inner_join(dcounts,by='Params') %>% mutate(FracSelected=`Times Selected`/NumInputs)
 
   fname=paste('drugsSelectedByparameter_',synTableId,'.png',sep='')
-  p<-ggplot(icounts)+geom_bar(aes(x=`Output Drugs`,y=`FracSelected`,fill=Params),stat='identity',position='dodge')+scale_fill_viridis_d()+theme(axis.text.x=element_text(angle=90,hjust=1))
+  p<-ggplot(icounts)+geom_bar(aes(x=`Output Drugs`,y=`FracSelected`,fill=Params),stat='identity',position='dodge')+scale_fill_viridis_d()+theme(axis.text.x=element_text(angle=90,hjust=1))+facet_grid(Quantiles~.)
   ggsave(fname,p,limitsize=FALSE,width = par("din")[1],
     height = par("din")[2])
   synapser::synStore(File(fname,parentId=parId),used=synTableId,executed=this.script)
