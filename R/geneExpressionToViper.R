@@ -66,7 +66,7 @@ loadEset<-function(rna.data,pheno.data,useEntrez=TRUE){
 addResponseClass<-function(eset,drug,thresholds=c(0.25,0.75)){
   library(Biobase)
   #extract pheno data to ascribe high/low
-  pheno.data <-pData(eset)%>%gather(key="Phenotype",value="Response",-sampleID)
+  pheno.data <-unique(pData(eset)%>%gather(key="Phenotype",value="Response",-sampleID))
   ##ascribe high/low values based on quantile data
   with.class<-pheno.data%>%group_by(Phenotype)%>%mutate(ResponseType=ifelse(Response<quantile(Response,thresholds,na.rm=T)[1],"Low",ifelse(Response>quantile(Response,thresholds,na.rm=T)[2],"High","Mid")))
 
