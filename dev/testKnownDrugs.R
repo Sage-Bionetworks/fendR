@@ -168,7 +168,7 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,vi
   registerDoMC(cores=32)
 
 
-  fin<-mclapply(pcsf.res.list,.fun=function(x,thresholds){
+  fin<-mclapply(pcsf.res.list,function(x,thresholds){
     #first store network
     network=x[['network']]
     drug=x[['inputDrug']]
