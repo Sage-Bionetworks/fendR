@@ -4,7 +4,6 @@
 ##
 ##-------------------
 
-
 require(synapser)
 require(ggplot2)
 library(fendR)
@@ -68,10 +67,17 @@ distance.minified <- function(fp1,fp.list){
 
 library(pbapply)
 
-computeTMDistance <-function(synTableId="syn12000477",parId='syn12104372',drugMap ='syn11831632'){
+computeTMDistance <-function(structureMap = "syn11712148",
+                             structureMapVersion=9,
+                             synTableId="syn12000477",
+                             parId='syn12104372',
+                             drugMap ='syn11712154',
+                             drugMapVersion = 7,
+                             projectId = 'syn7450839'){
+
   tab.res <-synapser::synTableQuery(paste("select `Input Drug`,`Output Drugs`,w,beta,mu,Quantiles from",synTableId))$asDataFrame()
 
-  name.to.dte <- readRDS(synapser::synGet("syn11712154", version = 7)$path) %>%
+  name.to.dte <- readRDS(synapser::synGet(drugMap, version = drugMapVersion)$path) %>%
     mutate(common_name = tolower(common_name)) %>%
     select(common_name, smiles, internal_id) %>%
     group_by(internal_id) %>%
@@ -80,9 +86,9 @@ computeTMDistance <-function(synTableId="syn12000477",parId='syn12104372',drugMa
     slice(1) %>%
     select(-count)
 
-  structure.map <- readRDS(synGet("syn11712148", version=9)$path)
+  structure.map <- readRDS(synGet(structureMap, version=structureMapVersion)$path)
 
-  sapply(tab.res$ROW_ID, function(x){
+  res <- pblapply(tab.res$ROW_ID, function(x){
     foo <- filter(tab.res, ROW_ID == x)
     input <- foo$`Input Drug`
     print(input)
@@ -104,17 +110,53 @@ computeTMDistance <-function(synTableId="syn12000477",parId='syn12104372',drugMa
     sim <- distance.minified(input.fp[[1]], output.fp)
     mean.tanimoto <- mean(sim)
     sd.tanimoto <- sd(sim)
+    c(x, mean.tanimoto, sd.tanimoto)
   })
+
+  res <- reduce(res, rbind)
+
+  res <- res %>%
+    as.data.frame() %>%
+    tibble::remove_rownames() %>%
+    set_names(c(paste0("ROW_ID"), "mean_TMD", "sd_TMD"))
+
+  res2 <- left_join(res, tab.res) %>%
+    dplyr::select(-`Input Drug`, -`Output Drugs`, -ROW_VERSION) %>%
+    set_names(c(paste0(synTableId,"_ROW_ID"), "mean_TMD", "sd_TMD","w","beta","mu","Quantiles"))
+
+  cols <- list(
+    Column(name= paste0(synTableId,"_ROW_ID"), columnType='STRING', maximumSize=10),
+    Column(name='mean_TMD', columnType='DOUBLE'),
+    Column(name='sd_TMD', columnType='DOUBLE'),
+    Column(name='w', columnType='DOUBLE'),
+    Column(name='beta', columnType='DOUBLE'),
+    Column(name='mu', columnType='DOUBLE'),
+    Column(name='Quantiles', columnType='STRING', maximumSize=20))
+
+  schema <- Schema(name = paste0(synTableId, " chemical distance metrics"), columns = cols, parent = projectId)
+
+  table<-Table(schema, res2)
+
+  table<-synStore(table,
+                  used = c(synTableId,
+                           paste0(structureMap,".",structureMapVersion),
+                           paste0(drugMap,".",drugMapVersion)),
+                  executed = this.script)
+
+  print(paste0("Results saved to ", table$schema$properties$id))
+
 }
 
+
 res <- computeTMDistance()
+
+
 
 #'
 #' we should also compute the overlap of predicted targets
 #'
 computeTargetOverlap <-function(synTableId="syn12000477",parId='syn12104372'){
-
-    drug.targs<-getDrugTargets()
+  drug.targs<-getDrugTargets()
 }
 
 
@@ -122,7 +164,7 @@ computeTargetOverlap <-function(synTableId="syn12000477",parId='syn12104372'){
 #' as a more general summary - what drugs are showing up in which networks?
 #'
 drugDistributionByParameters <- function(synTableId="syn12000477",parId='syn12104372'){
-#what drugs are being selected?
+  #what drugs are being selected?
   drug.tab <-getSelectedDrugByParameter(synTableId)
   new.res<- drug.tab%>%unite("Params", c(mu,beta,w),sep='_',remove=FALSE)
   dcounts<-new.res %>%group_by(Params,`Output Drugs`,Quantiles)%>%summarize(`Times Selected`=n())
@@ -131,7 +173,7 @@ drugDistributionByParameters <- function(synTableId="syn12000477",parId='syn1210
   fname=paste('drugsSelectedByparameter_',synTableId,'.png',sep='')
   p<-ggplot(icounts)+geom_bar(aes(x=`Output Drugs`,y=`FracSelected`,fill=Params),stat='identity',position='dodge')+scale_fill_viridis_d()+theme(axis.text.x=element_text(angle=90,hjust=1))+facet_grid(Quantiles~.)
   ggsave(fname,p,limitsize=FALSE,width = par("din")[1],
-    height = par("din")[2])
+         height = par("din")[2])
   synapser::synStore(File(fname,parentId=parId),used=synTableId,executed=this.script)
 }
 
