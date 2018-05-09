@@ -168,7 +168,7 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,vi
   registerDoMC(cores=32)
 
 
-  fin<-llply(pcsf.res.list,.fun=function(x,thresholds){
+  fin<-mclapply(pcsf.res.list,function(x,thresholds){
     #first store network
     network=x[['network']]
     drug=x[['inputDrug']]
@@ -188,7 +188,7 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12000477',esetFileId,vi
                      check.names=F)
 
      tres<-synapser::synStore(Table(synTableId,upl))
-  },thresholds,.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
+  },thresholds,mc.cores=32)
 #  stopCluster(cl)
   #store as synapse table
 
@@ -200,7 +200,16 @@ viper.file='syn11910413'
 #thresholds=c(0.25,0.75)
 for(w in c(2,3,4,5)){
  for(b in c(1,2,5,10)){
-   for(mu in c(5e-03,5e-02)){
+   for(mu in c(5e-5,5e-4,5e-03,5e-02)){
+     thresholds=c(0.1,0.9)
+     try(all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
+                                               viper.file=viper.file,
+                                               thresholds=thresholds,
+                                               w=w,b=b,mu=mu))#,
+     #                                    drug.name=c('parthenolide','gefitinib','selumetinib'))
+     try(trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file,thresholds=thresholds))
+
+
      thresholds=c(0.25,0.75)
      try(all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
                                                viper.file=viper.file,
