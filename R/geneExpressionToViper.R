@@ -105,7 +105,7 @@ runViperOnDset <- function(eset){
 #' @export
 #' @examples
 #' @return viper object
-getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE){
+getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE,p.corr=TRUE){
 
   #TODO: increase number of permuations! this is too low!!
 
@@ -115,7 +115,10 @@ getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE){
 
    sig <-viper::rowTtest(v.res[,high],v.res[,low])$statistic
    pval<-viper::rowTtest(v.res[,high],v.res[,low])$p.value
-  sig.ps<-which(p.adjust(pval)<pvalthresh)
+   if(p.corr){
+     pval <- p.adjust(pval)
+   }
+  sig.ps<-which(pval<pvalthresh)
   ret<-sig[sig.ps]
   names(ret)<-rownames(v.res)[sig.ps]
 
