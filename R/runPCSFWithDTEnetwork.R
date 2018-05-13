@@ -55,6 +55,10 @@ getDrugIds <- function(drug_names,split){
   if(length(parens)>0)
     drug_names=drug_names[-parens]
 
+  apos=grep("'",drug_names,fixed=T)
+  if(length(apos)>0)
+    drug_names=drug_names[-apos]
+
   if(!missing(split))
     drug_names2 <- sapply(drug_names,function(x) unlist(strsplit(x,split=split))[1])
   else
