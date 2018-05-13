@@ -41,7 +41,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   pset<-fendR::addResponseClass(eset,thresholds)
 
   #get drugs that have target ids
-  matched.ids <- getDrugIds(varLabels(pset),split='_')
+  matched.ids <- getDrugIds(varLabels(pset))
   tested.drugs <- matched.ids$ids
   #print(matched.ids)
 
@@ -60,8 +60,10 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   all.vprots<-sapply(varLabels(pset)[matched.drugs],function(drug){
     high = which(Biobase::pData(pset)[[drug]] =='High')
     low = which(Biobase::pData(pset)[[drug]]=='Low')
-    print(paste("found",length(high),'high and',length(low),'low samples for',drug,sep=' '))
-    fendR::getViperForDrug(v.obj,high,low,0.1,TRUE)
+   # print(paste("found",length(high),'high and',length(low),'low samples for',drug,sep=' '))
+    res<-fendR::getViperForDrug(v.obj,high,low,0.01,TRUE,FALSE)
+    print(paste("Found ",paste(names(res),collapse=','),' for drug ',drug))
+    return(res)
   })
   names(all.vprots)<-tolower(varLabels(pset)[matched.drugs])
 
@@ -194,14 +196,14 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12209124',esetFileId,vi
 
 }
 
-####first run: ccle data, first last/quarter:
+####ntap files
 eset.file='syn11912279'
 viper.file='syn11912228'
 #thresholds=c(0.25,0.75)
 for(w in c(2,3,4,5)){
  for(b in c(1,2,5,10)){
   for(mu in c(5e-05,5e-04,5e-03,5e-02)){
-  thresholds=c(0.1,0.9)
+  thresholds=c(0.05,0.95)
   all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
                                         viper.file=viper.file,
                                         thresholds=thresholds,
