@@ -23,7 +23,11 @@ loadEset<-function(rna.data,pheno.data,useEntrez=TRUE){
   samples<-intersect(rna.data$Sample,pheno.data$Sample)
 
   #create rna matrix
-  rna.mat<-unique(rna.data)%>%spread(key=Sample,value=Value)
+  rna.mat<-NULL
+
+  rna.mat<-unique(rna.data)%>%tidyr::spread(key=Sample,value=Value)
+  #if(is.null(rna.mat))
+  #  rna.mat<-unique(rna.data)%>%dplyr::mutate(id=1:n())%>%spread(key=Sample,value=Value,fill=0)%>%dplyr::select(-id)
   rownames(rna.mat)<-rna.mat$Gene
   rna.mat<-rna.mat[,which(colnames(rna.mat)%in%samples)]
 
@@ -79,6 +83,33 @@ addResponseClass<-function(eset,drug,thresholds=c(0.25,0.75)){
 
   return(eset)
 }
+
+#' \code{addGenotypeClass} takes a WT and KO set of features and creates a single class
+#' @param eset is expression set
+#' @param WT what genotypes do we consider WT
+#' @param KO what genotypes do we consider KO
+#' @keywords
+#' @export
+#' @examples
+#' @return expression set
+addGenotypeClass<-function(eset,conditions=list(homozygous=list(WT="+/+",KO="-/-"))){
+  library(Biobase)
+  #extract pheno data to ascribe high/low
+  pheno.data <-unique(pData(eset)%>%gather(key="Phenotype",value="Response",-sampleID))
+  ##ascribe high/low values based on quantile data
+  with.class<-lapply(conditions,function(x) pheno.data%>%mutate(ResponseType=ifelse(Response%in%x$WT,"WT",ifelse(Response%in%x$KO,"KO","NA"))))
+  with.cond<-do.call('rbind',lapply(names(conditions),function(x) cbind(with.class[[x]],Condition=rep(x,nrow(with.class[[x]])))))
+
+  phen.class<-spread(dplyr::select(data.frame(with.cond),-Response),key=Condition,value=ResponseType)%>%as.data.frame()
+
+  rownames(phen.class)<-phen.class$sampleID
+  phen.class<-phen.class%>%dplyr::rename(Sample='sampleID')
+
+  Biobase::phenoData(eset)<-Biobase::AnnotatedDataFrame(phen.class)
+
+  return(eset)
+}
+
 
 
 #' \code{runViperOnDset} takes an expression set and runs viper with all aracne
