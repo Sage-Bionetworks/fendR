@@ -16,15 +16,17 @@ storeViperOnSynapse <- function(rna.seq.data,pheno.file,used=c(),parentId,esetPa
   saveRDS(eset,file=fname)
   synStore(File(fname,description='Expression set with drug info',parent=esetParent),activity=Activity('Expression data',used=used,executed=this.script))
 
- # viper.res<-runViperOnDset(eset)
+  viper.res<-runViperOnDset(eset)
   fname=paste(datasetName,'withViper.rds',sep='')
-#  saveRDS(viper.res,file=fname)
-#  synStore(File(fname,description='Viper run on gene expression data',parent=parentId),activity=Activity('Viper on expression data',used=used,executed=this.script))
+  saveRDS(viper.res,file=fname)
+  synStore(File(fname,description='Viper run on gene expression data',parent=parentId),activity=Activity('Viper on expression data',used=used,executed=this.script))
 
 
 }
 
-file.list<-list(CCLE=list(rna='syn11902828',pheno='syn7466611'),Sanger=list(rna='syn9987858',pheno='syn9987866'),pNFCell=list(rna='syn8304627',pheno='syn8304620'))
+#file.list<-list(CCLE=list(rna='syn11902828',pheno='syn7466611'),Sanger=list(rna='syn9987858',pheno='syn9987866'),pNFCell=list(rna='syn8304627',pheno='syn8304620'))
+
+file.list<-list(updatedPNF=list(rna='syn12333637',pheno='syn12333638'))
 
 sapply(names(file.list),function(x){
   rf<-synGet(file.list[[x]]$rna)$path
@@ -37,5 +39,8 @@ sapply(names(file.list),function(x){
     rna.data<-read.table(rf,header=T)
     pheno.data<-read.table(pf,header=T)
   }
+  if('Value'%in%colnames(pheno.data))
+    colnames(pheno.data)[which(colnames(pheno.data)=='Value')]<-'Response'
+
   storeViperOnSynapse(rna.data,pheno.data,used=c(file.list[[x]]$rna,file.list[[x]]$pheno),'syn11889550','syn11912239',x)
 })
