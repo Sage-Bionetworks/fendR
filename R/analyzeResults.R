@@ -16,4 +16,5 @@ getGraphSaveVis <- function(synId){
 
   require(PCSF)
   res<-enrichment_analysis(file)
+  res
 }
