@@ -55,7 +55,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
  # matched.drugs <- which(sapply(toupper(varLabels(pset)),function(x) unlist(strsplit(x,split='_'))[1])%in%matched.ids$drugs)
 
   #get those with significantly differentially expressed genes
-  all.vprots<-sapply(names(conditions),function(cond){
+  all.vprots<-lapply(names(conditions),function(cond){
     wt = which(Biobase::pData(pset)[[cond]] =='WT')
     ko= which(Biobase::pData(pset)[[cond]]=='KO')
    # print(paste("found",length(high),'high and',length(low),'low samples for',drug,sep=' '))
@@ -79,7 +79,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   fname=paste(paste(eset.file,viper.file,w,b,mu,sep='_'),'.rds',sep='')
   #print(names(all.vprots)[nz.sig])
   #TODO: make this multi-core, possibly break into smaller functions
-  all.res <- mclapply(names(all.vprots)[nz.sig],function(cond,all.vprots,w,b,mu,fname,conditions){
+  all.res <- lapply(names(all.vprots)[nz.sig],function(cond,all.vprots,w,b,mu,fname,conditions){
     #create viper signature from high vs. low
     cat(cond)
   #print(high)
@@ -104,12 +104,12 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
       b=b,
       mu=mu,
       ko=paste(conditions[[cond]]$KO,collapse=','),
-      wt=paset(conditions[[cond]]$WT,collapse=','),
+      wt=paste(conditions[[cond]]$WT,collapse=','),
       viperProts=names(v.res),
     #  inputDrug=unlist(strsplit(drug,split='_'))[1],
       file=newf)
 
-  },all.vprots,w=w,b=b,mu=mu,fname,mc.cores=28)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
+  },all.vprots,w=w,b=b,mu=mu,fname,conditions)#,mc.cores=28)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
 
   names(all.res)<-names(all.vprots)[nz.sig]
   all.res
