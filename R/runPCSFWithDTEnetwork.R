@@ -33,8 +33,8 @@ loadDrugGraph <- function(){
 #' @return
 #'
 getDrugs <-function(drug.graph){
-  drugs<-names(which(degree(drug.graph,mode="out")>0))
-  drugs
+        drugs<-names(which(degree(drug.graph,mode="out")>0))
+    drugs
 }
 
 

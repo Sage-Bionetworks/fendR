@@ -18,9 +18,13 @@ library(tidyverse)
 loadEset<-function(rna.data,pheno.data,useEntrez=TRUE){
   library(org.Hs.eg.db)
 
-  pheno.data$Phenotype <- tolower(pheno.data$Phenotype)
+  ##work with list here
+  if(is.list(pheno.data))
+    samps<-unique(unlist(lapply(pheno.data,function(x) x$Sample)))
+  else
+    samps<-pheno.data$Sample
 
-  samples<-intersect(rna.data$Sample,pheno.data$Sample)
+  samples<-intersect(rna.data$Sample,samps)
 
   #create rna matrix
   rna.mat<-NULL
@@ -47,9 +51,15 @@ loadEset<-function(rna.data,pheno.data,useEntrez=TRUE){
   }
 
   #maybe we can use each row as input into viper
-  phen.class<-spread(pheno.data,key=Phenotype,value=Response)%>%as.data.frame()
+  if(is.list(pheno.data)){
+    phen.class<-Reduce(full_join,lapply(pheno.data,function(pd) spread(pd,key=Phenotype,value=Response,convert=TRUE)%>%as.data.frame()))
+  }else{
+    phen.class<-spread(pheno.data,key=Phenotype,value=Response,convert=TRUE)%>%as.data.frame()
+  }
   rownames(phen.class)<-phen.class$Sample
-  phen.class<-phen.class%>%dplyr::rename(sampleID="Sample")
+  colnames(phen.class)<-tolower(colnames(phen.class))
+
+  phen.class<-phen.class%>%dplyr::rename(sampleID="sample")
 
 
   #now i just need a regulon!!!
@@ -126,7 +136,7 @@ runViperOnDset <- function(eset){
   all.networks <- lapply(net.names,function(x) get(x))
   names(all.networks) <- net.names
 
-  res <- viper(exprs(eset), all.networks)
+  res <- viper(Biobase::exprs(eset), all.networks)
   return(res)
 }
 #
@@ -139,10 +149,6 @@ runViperOnDset <- function(eset){
 getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE,p.corr=TRUE){
 
   #TODO: increase number of permuations! this is too low!!
-
-
-#  null.sig <- ttestNull(eset, pheno=drug,group1='High',group2='Low',per=100)
- # vsig <-viperSignature(sig,null.sig,method='ttest')
 
    sig <-viper::rowTtest(v.res[,high],v.res[,low])$statistic
    pval<-viper::rowTtest(v.res[,high],v.res[,low])$p.value
