@@ -26,21 +26,21 @@ storeViperOnSynapse <- function(rna.seq.data,pheno.file,used=c(),parentId,esetPa
 
 #file.list<-list(CCLE=list(rna='syn11902828',pheno='syn7466611'),Sanger=list(rna='syn9987858',pheno='syn9987866'),pNFCell=list(rna='syn8304627',pheno='syn8304620'))
 
-file.list<-list(updatedPNF=list(rna='syn12333637',pheno='syn12333638'))
+file.list<-list(updatedPNF=list(rna='syn12333637',pheno=c('syn12333638',"syn8304620")))
 
 sapply(names(file.list),function(x){
   rf<-synGet(file.list[[x]]$rna)$path
-  pf<-synGet(file.list[[x]]$pheno)$path
+  pf<-sapply(file.list[[x]]$pheno,function(y) synGet(y)$path)
   if(x%in%c("Sanger","CCLE")){
     #get data files
     rna.data<-loadSampleData(rf)
     pheno.data<-loadPhenotypeData(pf)
   }else{
     rna.data<-read.table(rf,header=T)
-    pheno.data<-read.table(pf,header=T)
+    pheno.data<-lapply(pf,function(y) read.table(y,header=T))
   }
-  if('Value'%in%colnames(pheno.data))
-    colnames(pheno.data)[which(colnames(pheno.data)=='Value')]<-'Response'
+ # if('Value'%in%colnames(pheno.data))
+#    colnames(pheno.data)[which(colnames(pheno.data)=='Value')]<-'Response'
 
   storeViperOnSynapse(rna.data,pheno.data,used=c(file.list[[x]]$rna,file.list[[x]]$pheno),'syn11889550','syn11912239',x)
 })
