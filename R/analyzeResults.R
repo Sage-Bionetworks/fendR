@@ -4,7 +4,8 @@
 #do functional analysis restul
 #------------------
 
-this.script <<-'https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/R/analyzeResults.R?token=ABwyOsi9wIqVX7UHkp8AOLwoQBZ95HmGks5bIJM3wA%3D%3D'
+
+
 #' \code{getGraphSaveVis} Grabs a graph object stored on synapse, runs enrichment and saves visualiation
 #' @param synId synapse id of file
 #' @keywords
@@ -12,12 +13,14 @@ this.script <<-'https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/
 #' @examples
 #' @return not sure
 getGraphSaveVis <- function(synId){
+  this.script <<-'https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/R/analyzeResults.R?token=ABwyOsi9wIqVX7UHkp8AOLwoQBZ95HmGks5bIJM3wA%3D%3D'
+
   require(synapser)
-  synLogin()
-  file<-readRDS(synapser::synGet(synId)$path)
+  synapser::synLogin()
+  sf<-readRDS(synapser::synGet(synId)$path)
 
   require(PCSF)
-  res<-enrichment_analysis(file)
+  res<-PCSF::enrichment_analysis(sf)
 
   enrich<-do.call('rbind',lapply(1:length(res$enrichment),function(x){
       tres=res$enrichment[[x]]
@@ -29,21 +32,23 @@ getGraphSaveVis <- function(synId){
   write.table(enrich,file=fname,sep='\t')
 
   foldname=paste(synId,"results",sep='_')
-  fold.id<-synStore(Folder(name=foldname,parentId=synGet(synId)$properties$parentId))
+  fold.id<-synapser::synStore(Folder(name=foldname,parentId=synapser::synGet(synId)$properties$parentId))
 
 
   synStore(File(fname,parentId=fold.id$properties$id),used=c(synId),executed=this.script)
 
-  gname=paste(synId,'graphPlot.png',sep='_')
-  png(gname)
-  plot(res$subnet)
-  dev.off()
-  synStore(File(gname,parentId=fold.id$properties$id),used=c(synId),executed=this.script)
+  gname=paste(synId,'graphPlot.html',sep='_')
+  #plot(res$subnet)
+  #png(filename=gname)
+  net<-plot(res$subnet)
+  visNetwork::visSave(net,gname)
+  #dev.off()
+  synapser::synStore(File(gname,parentId=fold.id$properties$id),used=c(synId),executed=this.script)
 }
 
 getGeneExpressionEnrich<-function(tableId,synId){
   foldname=paste(synId,"results",sep='_')
-  fold.id<-synStore(Folder(name=foldname,parentId=synGet(synId)$properties$parentId))
+  fold.id<-synapser::synStore(Folder(name=foldname,parentId=synapser::synGet(synId)$properties$parentId))
 
 }
 
@@ -55,9 +60,11 @@ getGeneExpressionEnrich<-function(tableId,synId){
 #' @examples
 #' @return data frame of all go enrichment with adjusted p-value less than 0.1
 getViperProtExpressionEnrich <-function(synId,tableId){
+  this.script <<-'https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/R/analyzeResults.R?token=ABwyOsi9wIqVX7UHkp8AOLwoQBZ95HmGks5bIJM3wA%3D%3D'
+
   require(synapser)
   synLogin()
-  vp=synTableQuery(paste("select distinct 'Viper Proteins' from ",tableId,' where "PCSF Result"=',"'",synId,"'",sep=""))$asDataFrame()
+  vp=synapser::synTableQuery(paste("select distinct 'Viper Proteins' from ",tableId,' where "PCSF Result"=',"'",synId,"'",sep=""))$asDataFrame()
   require(enrichR)
   res<-enrichr(unlist(strsplit(vp[1,1],split=',')),database='GO_Biological_Process_2013')
   tres<-subset(res$GO_Biological_Process_2013,Adjusted.P.value<0.1)
@@ -65,9 +72,9 @@ getViperProtExpressionEnrich <-function(synId,tableId){
   write.table(tres,fname,sep='\t')
 
   foldname=paste(synId,"results",sep='_')
-  fold.id<-synStore(Folder(name=foldname,parentId=synGet(synId)$properties$parentId))
+  fold.id<-synStore(Folder(name=foldname,parentId=synapser::synGet(synId)$properties$parentId))
 
-  synStore(File(fname,parentId=fold.id$properties$id),used=c(synId,tableId),executed=this.script)
+  synapser::synStore(File(fname,parentId=fold.id$properties$id),used=c(synId,tableId),executed=this.script)
 }
 
 #' \code{plotDrugsAcrossData} Gets drugs from network and plots across input data
@@ -78,6 +85,8 @@ getViperProtExpressionEnrich <-function(synId,tableId){
 #' @examples
 #' @return data frame of all go enrichment with adjusted p-value less than 0.1
 plotDrugsAcrossData<-function(synId,tableId){
+  this.script <<-'https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/R/analyzeResults.R?token=ABwyOsi9wIqVX7UHkp8AOLwoQBZ95HmGks5bIJM3wA%3D%3D'
+
   require(synapser)
   synLogin()
   vp=synTableQuery(paste("select distinct 'Original eSet' from ",tableId,' where "PCSF Result"=',"'",synId,"'",sep=""))$asDataFrame()
@@ -94,6 +103,8 @@ plotDrugsAcrossData<-function(synId,tableId){
   overlap<-intersect(colnames(p.data),od)
   print(paste('found',length(overlap),'drugs that were tested alreadys out of',length(od),'in network'))
 
+  if(length(overlap)==0)
+    return(NULL)
   require(ggplot2)
   #retidy up the phenotypic data
   red.p<-p.data[,c('nf1 genotype',overlap)]
@@ -104,11 +115,10 @@ plotDrugsAcrossData<-function(synId,tableId){
   fname<-paste("drugResultsFrom",synId,'networkStoredIn',tableId,'table.png',sep='_')
   ggsave(fname)
   foldname=paste(synId,"results",sep='_')
-  fold.id<-synStore(Folder(name=foldname,parentId=synGet(synId)$properties$parentId))
+  fold.id<-synapser::synStore(Folder(name=foldname,parentId=synapser::synGet(synId)$properties$parentId))
 
-  res<-synStore(File(fname,parentId=fold.id$properties$id),used=c(vp[1,1],synId,tableId),executed=this.script)
+  res<-synapser::synStore(File(fname,parentId=fold.id$properties$id),used=c(vp[1,1],synId,tableId),executed=this.script)
 
-  red.p
 }
 
 
@@ -120,7 +130,8 @@ plotDrugsAcrossData<-function(synId,tableId){
 #' @examples
 #' @return
 doAllNetworkAssess <-function(synId,tableId){
-  getGraphSaveVis(synId)
-  plotDrugsAcrossData(synId,tableId)
-  getViperProtExpressionEnrich(synId,tableId)
+  print(paste('assessing',synId,'and',tableId))
+  fendR::getGraphSaveVis(synId)
+  fendR::plotDrugsAcrossData(synId,tableId)
+  fendR::getViperProtExpressionEnrich(synId,tableId)
 }
