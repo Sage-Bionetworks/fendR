@@ -22,10 +22,10 @@ loadSampleData <- function(fname){
   tab$Gene<-rownames(tab)
   res<-NULL
   try(
-    res<-tidyr::gather(data.frame(tab,check.names=F),"Sample","Value",1:(ncol(tab)-1))
+    res<-tidyr::gather(data.frame(tab,check.names=F),"Sample","Value",-Gene)
   )
-  if(is.null(res))
-    res<-tidyr::gather(data.frame(tab,check.names=T),"Sample","Value",1:(ncol(tab)-1))
+  if(is.null(res)||ncol(res)>3)
+    res<-tidyr::gather(data.frame(tab,check.names=T),"Sample","Value",-Gene)
 
   return(res)
 }
@@ -39,10 +39,15 @@ loadSampleData <- function(fname){
 #' @examples
 #' @return tidied data frame with columns 'Sample','Phenotype','Response'
 loadPhenotypeData <- function(fname){
-  tab<-read.table(fname,sep ='\t',check.names=F)
+  all.phens<-lapply(fname,function(fn){
+    tab<-read.table(fn,sep ='\t',check.names=F)
+    if(ncol(tab)>400)
+      tab<-as.data.frame(t(tab))
   tab$Sample<-rownames(tab)
-  res<-tidyr::gather(tab,"Phenotype","Response",1:(ncol(tab)-1))
-  return(res)
+   res<-tidyr::gather(tab,"Phenotype","Response",-Sample)
+    res
+  })
+  return(all.phens)
 }
 
 #' Load target/snp data

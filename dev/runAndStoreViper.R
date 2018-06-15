@@ -9,7 +9,7 @@ library(fendR)
 storeViperOnSynapse <- function(rna.seq.data,pheno.file,used=c(),parentId,esetParent,datasetName){
   #load eset **from SYNAPSE*
   eset<-loadEset(rna.seq.data,pheno.file,useEntrez=TRUE)
-  this.script='https://github.com/Sage-Bionetworks/fendR/pull/49/commits/d5aabd9260e0a3d15c26122c06ff963a798a87f6'
+  this.script='https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/dev/runAndStoreViper.R?token=ABwyOvseVJgofvKwfoMxe2Zx0zYUQaTXks5bLRZzwA%3D%3D'
 
   #store the eset
   fname=paste(datasetName,'expressionSet.rds',sep='')
@@ -26,12 +26,16 @@ storeViperOnSynapse <- function(rna.seq.data,pheno.file,used=c(),parentId,esetPa
 
 #file.list<-list(CCLE=list(rna='syn11902828',pheno='syn7466611'),Sanger=list(rna='syn9987858',pheno='syn9987866'),pNFCell=list(rna='syn8304627',pheno='syn8304620'))
 
-file.list<-list(updatedPNF=list(rna='syn12333637',pheno=c('syn12333638',"syn8304620")))
+#now adding genotype updates to all cell lines!
+file.list<-list(#updatedPNF=list(rna='syn12333637',pheno=c('syn12333638',"syn8304620")),
+  updatedCCLE=list(rna='syn11902828',pheno=c('syn7466611','syn7466552')),
+  updatedSanger=list(rna='syn9987858',pheno=c('syn9987866','syn9988097')))
 
 sapply(names(file.list),function(x){
+  print(x)
   rf<-synGet(file.list[[x]]$rna)$path
   pf<-sapply(file.list[[x]]$pheno,function(y) synGet(y)$path)
-  if(x%in%c("Sanger","CCLE")){
+  if(x%in%c("Sanger","CCLE",'updatedCCLE','updatedSanger')){
     #get data files
     rna.data<-loadSampleData(rf)
     pheno.data<-loadPhenotypeData(pf)
