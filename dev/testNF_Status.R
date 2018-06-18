@@ -90,10 +90,12 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
     pcsf.res<-readRDS(newf)
   } else{
    # print(v.res)
-    pcsf.res <-fendR::runPcsfWithParams(ppi=combined.graph,terminals=abs(v.res),dummies=all.drugs,w=w,b=b,mu=mu,doRand=TRUE)
+    pcsf.res.id <-fendR::runPcsfWithParams(ppi=combined.graph,terminals=abs(v.res),dummies=all.drugs,w=w,b=b,mu=mu,doRand=TRUE)
+    pcsf.res <-fendR::renameDrugIds(pcsf.res.id,all.drugs)
     saveRDS(pcsf.res,file=newf)
 
-    }
+  }
+
   drug.res <- igraph::V(pcsf.res)$name[which(igraph::V(pcsf.res)$type=='Compound')]
   cat(paste("Selected",length(drug.res),'drugs in the graph'))
 

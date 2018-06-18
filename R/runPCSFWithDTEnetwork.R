@@ -190,10 +190,22 @@ runPcsfWithParams <- function(ppi,terminals, dummies, w=2, b=1, mu=5e-04,doRand=
   else
     res <- PCSF::PCSF(ppi,terminals,w=w,b=b,mu=mu,dummies=dummies)
 
-  drug.inds<-which(V(res)$name%in%dummies)
-  V(res)$type[drug.inds]<-'Compound'
-  V(res)$name[drug.inds]<-getDrugNames(V(res)$name[drug.inds])[,2]
   return(res)
+
+}
+
+#' \code{renameDrugIds} Remaps drug ids to drug names for view-ability
+#' @param pcsf.res
+#' @param dummies
+#' @keywords
+#' @export
+#' @examples
+#' @return
+renameDrugIds <-function(pcsf.res,dummies){
+  drug.inds<-which(V(pcsf.res)$name%in%dummies)
+  V(pcsf.res)$type[drug.inds]<-'Compound'
+  V(pcsf.res)$name[drug.inds]<-getDrugNames(V(pcsf.res)$name[drug.inds])[,2]
+  pcsf.res
 
 }
 
