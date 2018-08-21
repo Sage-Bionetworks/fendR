@@ -159,7 +159,8 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12334021',esetFileId,vi
                      check.names=F)
 
      tres<-synapser::synStore(Table(synTableId,upl))
-  },mc.cores=28)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
+  },mc.cores=28)
+  #.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
 #  stopCluster(cl)
   #store as synapse table
 
@@ -171,12 +172,15 @@ viper.file='syn12333867'
 for(w in c(2,3,4,5)){
  for(b in c(1,2,5,10)){
   for(mu in c(5e-05,5e-04,5e-03,5e-02)){
+
   all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
                                         viper.file=viper.file,
                                         conditions=list(homozygous=list(WT="+/+",KO="-/-"),
                                           KOvsHets=list(WT=c("+/+","+/-"),KO="-/-"),
                                           InclHets=list(WT="+/+",KO=c("+/-","-/-"))),
                                         w=w,b=b,mu=mu)
+
+
   trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file)
 
 
