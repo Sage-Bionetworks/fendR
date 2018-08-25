@@ -24,10 +24,10 @@ These test break down into two facets:
 exploring the space of all drugs or just those that we can evaluate)
 
 The results are captured in this table below:
-| Testing Known Drugs | Testing by Genotype
---- | --- | ---
-Evaluating all drugs | [Completed](byDrugTestAllDrugs)| [In Process]()
-Evaluating tested drugs | [In Process](byDrugOnTestedDrugs) | [In Process]()
+|| Testing Known Drugs | Testing by Genotype|
+|--- | --- | ---|
+|Evaluating all drugs | [Completed](byDrugTestAllDrugs)| [In Process]()|
+|Evaluating tested drugs | [In Process](byDrugOnTestedDrugs) | [In Process]()|
 
 ## Next steps
 If the results seem to work well on a single dataset, does additional dataset
