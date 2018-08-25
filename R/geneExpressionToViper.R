@@ -96,20 +96,25 @@ addResponseClass<-function(eset,drug,thresholds=c(0.25,0.75)){
 
 #' \code{addGenotypeClass} takes a WT and KO set of features and creates a single class
 #' @param eset is expression set
-#' @param WT what genotypes do we consider WT
-#' @param KO what genotypes do we consider KO
+#' @param conditions is a list of conditions to ascribe to the response,
+#' @param genotype is a particular genotype to apply the ocnditions to
 #' @keywords
 #' @export
 #' @examples
 #' @return expression set
-addGenotypeClass<-function(eset,conditions=list(homozygous=list(WT="+/+",KO="-/-"))){
+addGenotypeClass<-function(eset,conditions=list(homozygous=list(WT="+/+",KO="-/-")),genotype='nf1 genotype'){
   library(Biobase)
   #extract pheno data to ascribe high/low
   pheno.data <-unique(pData(eset)%>%gather(key="Phenotype",value="Response",-sampleID))
-  ##ascribe high/low values based on quantile data
+  ##ascribes genotype data base3d on NF1 status, assuming NF1 is only gene.
   with.class<-lapply(conditions,function(x) pheno.data%>%mutate(ResponseType=ifelse(Response%in%x$WT,"WT",ifelse(Response%in%x$KO,"KO","NA"))))
-  with.cond<-do.call('rbind',lapply(names(conditions),function(x) cbind(with.class[[x]],Condition=rep(x,nrow(with.class[[x]])))))
 
+  with.cond<-do.call('rbind',lapply(names(conditions),function(x) cbind(with.class[[x]],Condition=rep(x,nrow(with.class[[x]])))))
+  ##we could do this if we end up having combinations of genotypes...
+  #with.cond$ResponseType[which(!with.cond$Phenotype%in%genotype)]<-'NA'
+
+  ##or just subset
+  with.cond<-subset(with.cond,Phenotype%in%genotype)
   phen.class<-spread(dplyr::select(data.frame(with.cond),-Response),key=Condition,value=ResponseType)%>%as.data.frame()
 
   rownames(phen.class)<-phen.class$sampleID
@@ -146,7 +151,7 @@ runViperOnDset <- function(eset){
 #' @export
 #' @examples
 #' @return viper object
-getViperForDrug <- function(v.res,high,low,pvalthresh=0.1,useEntrez=TRUE,p.corr=TRUE){
+getViperForDrug <- function(v.res,high,low,pvalthresh=0.05,useEntrez=TRUE,p.corr=TRUE){
 
   #TODO: increase number of permuations! this is too low!!
 
