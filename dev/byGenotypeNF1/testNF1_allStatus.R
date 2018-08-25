@@ -76,7 +76,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   drug.graph <- fendR::loadDrugGraph()
   combined.graph <-fendR::buildNetwork(drug.graph)
   all.drugs <- fendR::getDrugsFromGraph(drug.graph)
-  dids<-getDrugIds(names(pData(eset)),split='_')[,1]
+  dids<-as.character(getDrugIds(names(pData(eset)),split='_')[,1])
   fname=paste(paste(eset.file,viper.file,w,b,mu,sep='_'),'.rds',sep='')
   #print(names(all.vprots)[nz.sig])
   #TODO: make this multi-core, possibly break into smaller functions
