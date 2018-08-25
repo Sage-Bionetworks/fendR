@@ -190,10 +190,37 @@ runPcsfWithParams <- function(ppi,terminals, dummies, w=2, b=1, mu=5e-04,doRand=
   else
     res <- PCSF::PCSF(ppi,terminals,w=w,b=b,mu=mu,dummies=dummies)
 
-  drug.inds<-which(V(res)$name%in%dummies)
-  V(res)$type[drug.inds]<-'Compound'
-  V(res)$name[drug.inds]<-getDrugNames(V(res)$name[drug.inds])[,2]
   return(res)
+
+}
+
+
+#' \code{shuffleTerminalsAndRun} will shuffle terminals for a permutation test
+#' @param ppi
+#' @param terminals
+#' @param dummies
+#' @param w
+#' @param b
+#' @param mu
+#' @keywords
+#' @export
+#' @return original network as well as p-values on each node
+shuffleTerminalsAndRun <-function(ppi,terminals,dummies,w,b,mu,numShuffles){
+
+}
+
+#' \code{renameDrugIds} Remaps drug ids to drug names for view-ability
+#' @param pcsf.res
+#' @param dummies
+#' @keywords
+#' @export
+#' @examples
+#' @return
+renameDrugIds <-function(pcsf.res,dummies){
+  drug.inds<-which(V(pcsf.res)$name%in%dummies)
+  V(pcsf.res)$type[drug.inds]<-'Compound'
+  V(pcsf.res)$name[drug.inds]<-getDrugNames(V(pcsf.res)$name[drug.inds])[,2]
+  pcsf.res
 
 }
 

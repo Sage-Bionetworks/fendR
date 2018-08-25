@@ -4,7 +4,7 @@
 \alias{getViperForDrug}
 \title{\code{getViperForDrug} takes an expression set and a list of drugs and identifies a viper list of proteins that explain differential expression}
 \usage{
-getViperForDrug(v.res, high, low, pvalthresh = 0.1, useEntrez = TRUE,
+getViperForDrug(v.res, high, low, pvalthresh = 0.05, useEntrez = TRUE,
   p.corr = TRUE)
 }
 \arguments{

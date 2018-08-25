@@ -84,7 +84,7 @@ getViperProtExpressionEnrich <-function(synId,tableId){
 #' @export
 #' @examples
 #' @return data frame of all go enrichment with adjusted p-value less than 0.1
-plotDrugsAcrossData<-function(synId,tableId){
+plotDrugsAcrossData<-function(synId,tableId,genotype='nf1 genotype'){
   this.script <<-'https://raw.githubusercontent.com/Sage-Bionetworks/fendR/master/R/analyzeResults.R?token=ABwyOsi9wIqVX7UHkp8AOLwoQBZ95HmGks5bIJM3wA%3D%3D'
 
   require(synapser)
@@ -94,24 +94,12 @@ plotDrugsAcrossData<-function(synId,tableId){
   #first get drugs responses
   require(Biobase)
   eset <-readRDS(synapser::synGet(vp[1,1])$path)
-  p.data<-pData(eset)
-
-  #now get selected drugs
+   #now get selected drugs
   #network<-readRDS(synapser::synGet(synId)$path)
   vd=synTableQuery(paste("select distinct 'Output Drugs' from ",tableId,' where "PCSF Result"=',"'",synId,"'",sep=""))$asDataFrame()
   od<-sapply(unlist(strsplit(vd[1,1],split=',')),tolower)
-  overlap<-intersect(colnames(p.data),od)
-  print(paste('found',length(overlap),'drugs that were tested alreadys out of',length(od),'in network'))
 
-  if(length(overlap)==0)
-    return(NULL)
-  require(ggplot2)
-  #retidy up the phenotypic data
-  red.p<-p.data[,c('nf1 genotype',overlap)]
-  red.p$Sample <- rownames(red.p)
-  red.p<-red.p%>%gather(Drug,Response,overlap)
-  ggplot(red.p)+geom_boxplot(aes(x=Drug,y=Response,col=`nf1 genotype`))
-
+  res=plotDrugs(eset,od,genotype)
   fname<-paste("drugResultsFrom",synId,'networkStoredIn',tableId,'table.png',sep='_')
   ggsave(fname)
   foldname=paste(synId,"results",sep='_')
@@ -119,6 +107,30 @@ plotDrugsAcrossData<-function(synId,tableId){
 
   res<-synapser::synStore(File(fname,parentId=fold.id$properties$id),used=c(vp[1,1],synId,tableId),executed=this.script)
 
+}
+
+#' \code{plotDrugs} carries out the plotting mechanism for  a single network
+#' @param eset expressionset
+#' @param drugList list of drugs
+#' @export
+plotDrugs <-function(eset,drugList,genotype){
+  p.data<-pData(eset)
+  dnames=toupper(sapply(colnames(p.data),function(x) unlist(strsplit(x,split='_'))[1]))
+  overlap<-intersect(dnames,drugList)
+
+  print(paste('found',length(overlap),'drugs that were tested alreadys out of',length(drugList),'in network'))
+
+
+  if(length(overlap)==0)
+    return(NULL)
+  require(ggplot2)
+  #retidy up the phenotypic data
+  dd.names<-colnames(p.data)[which(dnames%in%overlap)]
+  red.p<-p.data[,c(genotype,dd.names)]
+  red.p$Sample <- rownames(red.p)
+  red.p<-red.p%>%gather(Drug,Response,dd.names)
+  red.p$mutation<-as.factor(red.p[[genotype]])
+  ggplot(red.p)+geom_boxplot(aes(x=Drug,y=Response,col=mutation))
 }
 
 
