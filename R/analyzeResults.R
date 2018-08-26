@@ -116,7 +116,7 @@ plotDrugsAcrossData<-function(synId,tableId,genotype='nf1 genotype'){
 plotDrugs <-function(eset,drugList,genotype){
   p.data<-pData(eset)
   dnames=toupper(sapply(colnames(p.data),function(x) unlist(strsplit(x,split='_'))[1]))
-  overlap<-intersect(dnames,drugList)
+  overlap<-intersect(dnames,toupper(drugList))
 
   print(paste('found',length(overlap),'drugs that were tested alreadys out of',length(drugList),'in network'))
 
@@ -130,8 +130,12 @@ plotDrugs <-function(eset,drugList,genotype){
   red.p$Sample <- rownames(red.p)
   red.p<-red.p%>%gather(Drug,Response,dd.names)
   red.p$mutation<-as.factor(red.p[[genotype]])
+  red.p=subset(red.p,!is.na(mutation))
   ggplot(red.p)+geom_boxplot(aes(x=Drug,y=Response,col=mutation))
-}
+
+  red.p%>%group_by(Drug)%>%do(broom::tidy(wilcox.test(Response~mutation,.,na.rm=T)))%>%dplyr::select(Drug,p.value)
+
+  }
 
 
 #' \code{doAllNetworkAssess} does all the network stuff

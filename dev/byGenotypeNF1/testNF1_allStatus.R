@@ -92,7 +92,7 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   } else{
    # print(v.res)
     pcsf.res.id <-fendR::runPcsfWithParams(ppi=combined.graph,terminals=abs(v.res),dummies=dids,w=w,b=b,mu=mu,doRand=TRUE)
-    pcsf.res <-fendR::renameDrugIds(pcsf.res.id,all.drugs)
+    pcsf.res <-fendR::renameDrugIds(pcsf.res.id,dids)
     saveRDS(pcsf.res,file=newf)
 
   }
@@ -168,17 +168,9 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12334021',esetFileId,vi
 }
 
 ####ntap files
-eset.file='syn12333863'
-viper.file='syn12333867'
-
-##ccle files
-eset.file='syn12549491'
-
-viper.file='syn12549589'
-##sanger files
-
-eset.file='syn12549635'
-viper.file='syn12549806'
+synIds<-list(NTAP=list(results='syn12333924',eset.file='syn12333863',viper.file='syn12333867',tableId='syn12334021'),
+              CCLE=list(results='syn15734434',eset.file='syn12549491',viper.file='syn12549589',tableId=''),
+            Sanger=list(results='syn15734433',eset.file='syn12549635',viper.file='syn12549806',tableId=''))
 
 #for(w in c(2,3,4,5)){
 # for(b in c(1,2,5,10)){
