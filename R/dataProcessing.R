@@ -39,14 +39,24 @@ loadSampleData <- function(fname){
 #' @examples
 #' @return tidied data frame with columns 'Sample','Phenotype','Response'
 loadPhenotypeData <- function(fname){
-  all.phens<-lapply(fname,function(fn){
+  if(length(fname)>1){
+    all.phens<-lapply(names(fname),function(fni){
+      fn=fname[[fni]]
+      tab<-read.table(fn,sep ='\t',check.names=F)
+      if(fni=='byGene')
+        tab<-as.data.frame(t(tab))
+    tab$Sample<-rownames(tab)
+    res<-tidyr::gather(tab,"Phenotype","Response",-Sample)
+      res
+    })
+  }
+  else{
+    fn=fname
     tab<-read.table(fn,sep ='\t',check.names=F)
-    if(ncol(tab)>400)
-      tab<-as.data.frame(t(tab))
-  tab$Sample<-rownames(tab)
-   res<-tidyr::gather(tab,"Phenotype","Response",-Sample)
-    res
-  })
+    tab$Sample<-rownames(tab)
+    res<-tidyr::gather(tab,"Phenotype","Response",-Sample)
+    all.phens=res
+  }
   return(all.phens)
 }
 

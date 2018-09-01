@@ -113,7 +113,8 @@ plotDrugsAcrossData<-function(synId,tableId,genotype='nf1 genotype'){
 #' @param eset expressionset
 #' @param drugList list of drugs
 #' @export
-plotDrugs <-function(eset,drugList,genotype){
+plotDrugs <-function(eset.file,drugList,genotype){
+  eset<-readRDS(synapser::synGet(eset.file)$path)
   p.data<-pData(eset)
   dnames=toupper(sapply(colnames(p.data),function(x) unlist(strsplit(x,split='_'))[1]))
   overlap<-intersect(dnames,toupper(drugList))
@@ -131,10 +132,12 @@ plotDrugs <-function(eset,drugList,genotype){
   red.p<-red.p%>%gather(Drug,Response,dd.names)
   red.p$mutation<-as.factor(red.p[[genotype]])
   red.p=subset(red.p,!is.na(mutation))
-  ggplot(red.p)+geom_boxplot(aes(x=Drug,y=Response,col=mutation))
-
-  red.p%>%group_by(Drug)%>%do(broom::tidy(wilcox.test(Response~mutation,.,na.rm=T)))%>%dplyr::select(Drug,p.value)
-
+  ggplot(red.p)+geom_boxplot(aes(x=mutation,y=Response,col=mutation))+facet_grid(.~Drug)+ggtitle(paste(genotype,'mutation by drug response'))
+  fname=paste(eset.file,paste(drugList,collapse='_'),genotype,'genotype.png',sep='_')
+  ggsave(filename=fname)
+  tab<-red.p%>%group_by(Drug)%>%do(broom::tidy(wilcox.test(Response~mutation,.,na.rm=T)))%>%dplyr::select(Drug,p.value)
+  tab$figFile=rep(fname,nrow(tab))
+  tab
   }
 
 

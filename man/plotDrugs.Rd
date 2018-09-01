@@ -4,12 +4,12 @@
 \alias{plotDrugs}
 \title{\code{plotDrugs} carries out the plotting mechanism for  a single network}
 \usage{
-plotDrugs(eset, drugList, genotype)
+plotDrugs(eset.file, drugList, genotype)
 }
 \arguments{
-\item{eset}{expressionset}
-
 \item{drugList}{list of drugs}
+
+\item{eset}{expressionset}
 }
 \description{
 \code{plotDrugs} carries out the plotting mechanism for  a single network

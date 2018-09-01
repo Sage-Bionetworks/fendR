@@ -35,7 +35,6 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   require(parallel)
   require(Biobase)
 
-
   eset<-readRDS(synGet(eset.file)$path)
   pset<-fendR::addResponseClass(eset,thresholds)
 
@@ -166,7 +165,6 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn12104377',esetFileId,vi
 #  cl <- makeCluster(nnodes=8)
   require(parallel)
  # registerDoMC(cores=28)
-
 
   fin<-mclapply(pcsf.res.list,function(x,thresholds){
     #first store network
