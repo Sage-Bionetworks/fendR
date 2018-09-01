@@ -103,6 +103,13 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   drug.res <- igraph::V(pcsf.res)$name[which(igraph::V(pcsf.res)$type=='Compound')]
   cat(paste("Selected",length(drug.res),'drugs in the graph'))
 
+  pvalsAndFigs=plotDrugs(eset.file,drug.res,genotype)
+  tab<-do.call(cbind,vertex.attributes(pcsf.res))
+  ttab<-as.data.frame(tab)%>%filter(type=='Compound')%>%mutate(Drug=tolower(name))%>%dplyr::select(c(Drug,prize))
+  #now we need to store all of these in the updated table.
+  res=left_join(pvalsAndFigs,ttab,by='Drug')
+
+
     ##collect stats, store in synapse table
     list(network=pcsf.res,
       drugs=drug.res,
@@ -113,7 +120,8 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
       wt=paste(conditions[[cond]]$WT,collapse=','),
       viperProts=names(v.res),
     #  inputDrug=unlist(strsplit(drug,split='_'))[1],
-      file=newf)
+      file=newf,
+      compoundStats=res)
 
   },all.vprots,w=w,b=b,mu=mu,fname,conditions)#,mc.cores=28)#.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
 
@@ -130,11 +138,10 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
 #'@param esetFileId
 #'@param viperFileId
 #'
-trackNetworkStats<-function(pcsf.res.list,synTableId='syn16780706',esetFileId,viperFileId){
+trackNetworkStats<-function(pcsf.res.list,synTableId='syn16780706',esetFileId,viperFileId,dsetName='',  pcsf.parent='syn15734434',  plot.parent='syn15734433'){
   require(synapser)
 
-  pcsf.parent='syn12333924'
-  plot.parent=''
+
   this.script='https://github.com/Sage-Bionetworks/fendR/blob/master/dev/byGenotypeNF1/testNF1_allStatus.R'
   #decouple pcsf.res.list into data frame
 
@@ -144,7 +151,7 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn16780706',esetFileId,vi
  # registerDoMC(cores=28)
 
 
-  fin<-mclapply(pcsf.res.list,function(x){
+  fin<-lapply(pcsf.res.list,function(x){
     #first store network
     network=x[['network']]
     w=x[['w']]
@@ -153,18 +160,22 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn16780706',esetFileId,vi
     fname=x[['file']]
     ko=x[['ko']]
     wt=x[['wt']]
-
+    ds=x[['compoundStats']]%>%rename(Drug='Selected Drug',p.value='Drug Wilcoxon P-value')%>%mutate('Drug Prize Value'=as.numeric(prize))%>%ungroup()
+    ds$`Drug Boxplot`=sapply(ds$figFile,function(y) synStore(File(y,parentId=plot.parent))$properties$id)
     res=synapser::synStore(File(fname,parentId=pcsf.parent),used=c(esetFileId,viperFileId),executed=this.script)
-    upl<-data.frame(`NF1 KO`=ko,`NF1 WT`=wt,w=w,beta=b,mu=mu,
-                     `Viper Proteins`=paste(sort(x$viperProts),collapse=','),
-                     `Output Drugs`=paste(sort(x$drugs),collapse=','),
-                     `Original eSet`=esetFileId,`Original metaViper`=viperFileId,
-                     `mean TMD`=0,`PCSF Result`=res$properties$id,
-                     `Mean Jaccard Distance`=0,
-                     check.names=F)
 
-     tres<-synapser::synStore(Table(synTableId,upl))
-  },mc.cores=28)
+    ds=ds%>%dplyr::select(-figFile,-prize)
+    #store image file
+    upl<-data.frame(`NF1 KO`=ko,`NF1 WT`=wt,w=w,beta=b,mu=mu,
+      `Viper Proteins`=paste(sort(x$viperProts),collapse=','),
+      `Original eSet`=esetFileId,`Original metaViper`=viperFileId,
+      `PCSF Result`=res$properties$id,`Dataset name`=dsetName,check.names=F)#,
+    #                     check.names=F)
+
+  upl2=merge(ds,upl)
+
+     tres<-synapser::synStore(Table(synTableId,upl2))
+  })#,mc.cores=28)
   #.parallel=TRUE,.paropts = list(.export=ls(.GlobalEnv)))
 #  stopCluster(cl)
   #store as synapse table
@@ -172,18 +183,26 @@ trackNetworkStats<-function(pcsf.res.list,synTableId='syn16780706',esetFileId,vi
 }
 
 ####ntap files
-synIds<-list(NTAP=list(results='syn12333924',eset.file='syn12333863',viper.file='syn12333867',tableId='syn12334021'),
-              CCLE=list(results='syn15734434',eset.file='syn12549491',viper.file='syn12549589',tableId=''),
-            Sanger=list(results='syn15734433',eset.file='syn12549635',viper.file='syn12549806',tableId=''))
+#synIds<-list(NTAP=list(results='syn12333924',eset.file='syn12333863',viper.file='syn12333867',tableId='syn12334021'),
+  synIds=list(
+              CCLE=list(eset.file='syn12549491',viper.file='syn12549589'),
+            Sanger=list(eset.file='syn12549635',viper.file='syn12549806'))
+
+wvals=c(2,3,4,5)
+bvals=c(1,2,5,10)
+muvals=c(5e-05,5e-04,5e-03,5e-02)
 
 #for(w in c(2,3,4,5)){
 # for(b in c(1,2,5,10)){
-#  for(mu in c(5e-05,5e-04,5e-03,5e-02)){
-   mu=0.005
-   b=1
-   w=2
+#  for(mu in c()){
 
-  x=synIds$CCLE
+all.params=expand.grid(w=wvals,b=bvals,mu=muvals,dname=names(synIds))
+
+#all.params=all.params[1:10,]
+
+fr=mdply(.data=all.params,.fun=function(w,b,mu,dname){
+
+  x=synIds[[dname]]
 
   all.res<-findDrugsWithTargetsAndGenes(eset.file=x$eset.file,
                                         viper.file=x$viper.file,
@@ -191,12 +210,7 @@ synIds<-list(NTAP=list(results='syn12333924',eset.file='syn12333863',viper.file=
                                         conditions=list(KOvsWT=list(KO=1,WT=0)),
                                         w=w,b=b,mu=mu)
 
-  pvals=plotDrugs(x$eset.file,all.res$KOvsWT$drugs,'nf1')
-  tab<-do.call(cbind,vertex.attributes(all.res$KOvsWT$network))
-  #now we need to store all of these in the updated table.
 
- # trackNetworkStats(all.res,synTableId=x$results,esetFileId=x$eset.file,viperFileId=x$viper.file)
-
-
-#}}}
+ trackNetworkStats(all.res,esetFileId=x$eset.file,viperFileId=x$viper.file, dsetName=dname)
+})
 
