@@ -212,5 +212,5 @@ fr=mdply(.data=all.params,.fun=function(w,b,mu,dname){
 
 
  trackNetworkStats(all.res,esetFileId=x$eset.file,viperFileId=x$viper.file, dsetName=dname)
-})
+},.parallel=TRUE)
 
