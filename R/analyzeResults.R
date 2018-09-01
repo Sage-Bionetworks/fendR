@@ -113,7 +113,8 @@ plotDrugsAcrossData<-function(synId,tableId,genotype='nf1 genotype'){
 #' @param eset expressionset
 #' @param drugList list of drugs
 #' @export
-plotDrugs <-function(eset,drugList,genotype){
+plotDrugs <-function(eset.file,drugList,genotype){
+  eset<-readRDS(synapser::synGet(eset.file)$path)
   p.data<-pData(eset)
   dnames=toupper(sapply(colnames(p.data),function(x) unlist(strsplit(x,split='_'))[1]))
   overlap<-intersect(dnames,toupper(drugList))

@@ -14,12 +14,15 @@ storeViperOnSynapse <- function(rna.seq.data,pheno.file,used=c(),parentId,esetPa
   #store the eset
   fname=paste(datasetName,'expressionSet.rds',sep='')
   saveRDS(eset,file=fname)
+  used=as.vector(unlist(used))
+  print(used)
   synStore(File(fname,description='Expression set with drug info',parent=esetParent),activity=Activity('Expression data',used=used,executed=this.script))
 
   if(runViper){
     viper.res<-runViperOnDset(eset)
     fname=paste(datasetName,'withViper.rds',sep='')
     saveRDS(viper.res,file=fname)
+    print(used)
     synStore(File(fname,description='Viper run on gene expression data',parent=parentId),activity=Activity('Viper on expression data',used=used,executed=this.script))
   }
 
@@ -28,9 +31,11 @@ storeViperOnSynapse <- function(rna.seq.data,pheno.file,used=c(),parentId,esetPa
 #file.list<-list(CCLE=list(rna='syn11902828',pheno='syn7466611'),Sanger=list(rna='syn9987858',pheno='syn9987866'),pNFCell=list(rna='syn8304627',pheno='syn8304620'))
 
 #now adding genotype updates to all cell lines!
-file.list<-list(updatedPNF=list(rna='syn12333637',pheno=c('syn12333638',"syn8304620")),
-  updatedCCLE=list(rna='syn11902828',pheno=c('syn7466611','syn7466552')),
-  updatedSanger=list(rna='syn9987858',pheno=c('syn9987866','syn9988097')))
+##update from sept 01, 2018: this might not work without pheno being a named list, but rds will still work.
+#file.list<-list(updatedPNF=list(rna='syn12333637',pheno=c('syn12333638',"syn8304620")),
+
+file.list<-list(updatedCCLE=list(rna='syn11902828',pheno=list(byDrug='syn7466611',byGene='syn7466552')),
+  updatedSanger=list(rna='syn9987858',pheno=list(byDrug='syn9987866',byGene='syn9988097')))
 
 sapply(names(file.list),function(x){
   print(x)
@@ -47,5 +52,6 @@ sapply(names(file.list),function(x){
  # if('Value'%in%colnames(pheno.data))
 #    colnames(pheno.data)[which(colnames(pheno.data)=='Value')]<-'Response'
 
-  storeViperOnSynapse(rna.data,pheno.data,used=c(file.list[[x]]$rna,file.list[[x]]$pheno),'syn11889550','syn12550830',x,useEntrez=FALSE,runViper=FALSE)
+  storeViperOnSynapse(rna.data,pheno.data,used=c(file.list[[x]]$rna,file.list[[x]]$pheno),'syn11889550','syn11912239',x,useEntrez=TRUE,runViper=FALSE)
+  #storeViperOnSynapse(rna.data,pheno.data,used=c(file.list[[x]]$rna,file.list[[x]]$pheno),'syn11889550','syn12550830',x,useEntrez=FALSE,runViper=FALSE)
 })

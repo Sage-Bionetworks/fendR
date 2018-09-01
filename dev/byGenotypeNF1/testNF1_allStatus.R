@@ -59,8 +59,11 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
   all.vprots<-lapply(names(conditions),function(cond){
     wt = which(Biobase::pData(pset)[[cond]] =='WT')
     ko= which(Biobase::pData(pset)[[cond]]=='KO')
+
+    wt.names=intersect(colnames(v.obj),Biobase::pData(pset)$Sample[wt])
+    ko.names=intersect(colnames(v.obj),Biobase::pData(pset)$Sample[ko])
    # print(paste("found",length(high),'high and',length(low),'low samples for',drug,sep=' '))
-    res<-fendR::getViperForDrug(v.obj,wt,ko,0.001,TRUE,FALSE)
+    res<-fendR::getViperForDrug(v.obj,wt.names,ko.names,0.001,TRUE,FALSE)
     print(paste("Found ",paste(names(res),collapse=','),' for condition ',cond))
     return(res)
   })
@@ -127,11 +130,12 @@ findDrugsWithTargetsAndGenes <-function(eset.file,
 #'@param esetFileId
 #'@param viperFileId
 #'
-trackNetworkStats<-function(pcsf.res.list,synTableId='syn12334021',esetFileId,viperFileId){
+trackNetworkStats<-function(pcsf.res.list,synTableId='syn16780706',esetFileId,viperFileId){
   require(synapser)
 
   pcsf.parent='syn12333924'
-  this.script='https://github.com/Sage-Bionetworks/fendR/blob/master/dev/testNF_Status.R'
+  plot.parent=''
+  this.script='https://github.com/Sage-Bionetworks/fendR/blob/master/dev/byGenotypeNF1/testNF1_allStatus.R'
   #decouple pcsf.res.list into data frame
 
 #  require(doMC)
@@ -179,17 +183,19 @@ synIds<-list(NTAP=list(results='syn12333924',eset.file='syn12333863',viper.file=
    b=1
    w=2
 
-  all.res<-findDrugsWithTargetsAndGenes(eset.file=eset.file,
-                                        viper.file=viper.file,
+  x=synIds$CCLE
+
+  all.res<-findDrugsWithTargetsAndGenes(eset.file=x$eset.file,
+                                        viper.file=x$viper.file,
                                         genotype='nf1',
                                         conditions=list(KOvsWT=list(KO=1,WT=0)),
                                         w=w,b=b,mu=mu)
 
-  plotDrugs(eset,all.res$KOvsWT$drugs,'nf1')
+  pvals=plotDrugs(x$eset.file,all.res$KOvsWT$drugs,'nf1')
   tab<-do.call(cbind,vertex.attributes(all.res$KOvsWT$network))
- # trackNetworkStats(all.res,esetFileId=eset.file,viperFileId=viper.file)
+  #now we need to store all of these in the updated table.
 
-
+ # trackNetworkStats(all.res,synTableId=x$results,esetFileId=x$eset.file,viperFileId=x$viper.file)
 
 
 #}}}

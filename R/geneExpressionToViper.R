@@ -65,7 +65,7 @@ loadEset<-function(rna.data,pheno.data,useEntrez=TRUE){
   #now i just need a regulon!!!
   eset<-Biobase::ExpressionSet(as.matrix(rna.mat))#,phenoData=Biobase::AnnotatedDataFrame(phen.class[which(rownames(phen.class)%in%samples),]))
 
-  Biobase::phenoData(eset)<-Biobase::AnnotatedDataFrame(phen.class[which(rownames(phen.class)%in%samples),])
+  Biobase::phenoData(eset)<-Biobase::AnnotatedDataFrame(phen.class)#[which(rownames(phen.class)%in%samples),])
   return(eset)
 
 }
