@@ -64,8 +64,8 @@ getDrugIds <- function(drug_names,split){
   else
     drug_names2 <- drug_names
 
-  prefix="select * from syn11831632 where common_name='"
-  query=paste(prefix,paste(drug_names2,collapse="' OR common_name='"),sep='')
+  prefix="select internal_id, std_name from syn17090819 where std_name='"
+  query=paste(prefix,paste(drug_names2,collapse="' OR std_name='"),sep='')
   res <- synapser::synTableQuery(paste(query,"'",sep=''))$asDataFrame()%>%dplyr::select(-ROW_ID,-ROW_VERSION)
 
   print(paste("Found",nrow(res),'drug internal ids for',length(drug_names2),'common names'))
@@ -86,7 +86,7 @@ getDrugNames <- function(drug_ids){
   require(synapser)
   require(dplyr)
   synLogin()
-  prefix="select * from syn11831632 where internal_id in ("
+  prefix="select internal_id, std_name from syn17090819 where internal_id in ("
   #query=paste(prefix,paste(drug_ids,collapse="' OR internal_id='"),sep='')
 
   res2<-do.call(rbind,lapply(split(drug_ids,ceiling(seq_along(drug_ids)/50000)),function(x){
