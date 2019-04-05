@@ -1,5 +1,7 @@
 FROM rocker/tidyverse
 
+RUN apt-get install -y net-tools
+
 RUN Rscript -e "install.packages('argparse')"
 RUN Rscript -e "install.packages('BiocManager')"
 RUN Rscript -e "install.packages('devtools')"
